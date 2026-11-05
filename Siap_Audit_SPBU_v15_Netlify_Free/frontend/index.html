@@ -77,6 +77,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #printdoc{display:none}
 @media print{body.pf{background:#fff}body.pf #app,body.pf .toast{display:none!important}body.pf #printdoc{display:block;color:#000;background:#fff;font-size:11px;line-height:1.4}#printdoc h1{font-size:18px;margin:0 0 4px}#printdoc h2{font-size:14px;margin:16px 0 4px;border-bottom:2px solid #000;break-after:avoid}#printdoc h3{font-size:12px;margin:10px 0 2px;break-after:avoid}#printdoc p{margin:2px 0}.pi{break-inside:avoid;border-top:1px solid #bbb;padding:5px 0}.pr{display:inline-block;min-width:22px;text-align:center;font-weight:700;border:1px solid #000;margin:0 6px 0 4px}.pc{margin-top:2px;font-style:italic}.pp img{width:150px;height:110px;object-fit:cover;margin:4px 4px 0 0;border:1px solid #999}}
 @media print{body::before,.hd,.nav,.fab,.foot,.btn{display:none!important}#app{max-width:none;padding:0}.card{break-inside:avoid}}
+ @media screen {#app {padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px));}.fab {bottom: calc(100px + env(safe-area-inset-bottom, 0px));}.nav, .foot {bottom: 80px;}.sheet {padding-bottom: 80px;}.toast {bottom: calc(200px + env(safe-area-inset-bottom, 0px));}}
 </style>
 </head>
 <body>
