@@ -1,4 +1,4 @@
-const V = "siap-audit-netlify-v15";
+const V = "siap-audit-netlify-v16";
 const PUBLIC = new Set(["/icon-192.png", "/icon-512.png", "/manifest.webmanifest"]);
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(V).then(cache => cache.addAll([...PUBLIC])).then(() => self.skipWaiting()));

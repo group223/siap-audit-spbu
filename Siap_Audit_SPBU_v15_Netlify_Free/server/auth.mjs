@@ -21,15 +21,15 @@ export class AuthError extends Error {
 export function authConfiguration(env) {
   const username = normalize(env.ADMIN_USERNAME);
   const password = String(env.ADMIN_PASSWORD || "");
-  if (!USERNAME.test(username) || password.length < 12 || password.length > 128) return null;
+  if (!USERNAME.test(username) || password.length < 8 || password.length > 128) return null;
   // Changing the admin password also invalidates every existing session.
   const signingKey = createHmac("sha256", password).update("siap-audit-netlify-v15:" + username).digest();
   return { username, password, signingKey };
 }
 
 export async function passwordHash(password) {
-  if (typeof password !== "string" || password.length < 12 || password.length > 128) {
-    throw new AuthError("Kata sandi harus terdiri dari 12–128 karakter.");
+  if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+    throw new AuthError("Kata sandi harus terdiri dari 8–128 karakter.");
   }
   const salt = randomBytes(16).toString("hex");
   const key = await scrypt(password, salt, 64, { N: 16384, r: 8, p: 1 });
@@ -43,8 +43,10 @@ async function passwordMatches(password, encoded) {
   return timingSafeEqual(key, Buffer.from(parts[2], "hex"));
 }
 
+export const stationKey = value => { const n = String(value || "").replace(/[^0-9]/g, ""); return /^\d{7}$/.test(n) ? n : ""; };
+
 function publicUser(user) {
-  return { username: user.username, name: user.name || user.username, role: user.role, version: user.version };
+  return { username: user.username, name: user.name || user.username, role: user.role, version: user.version, stationNumber: stationKey(user.stationNumber) };
 }
 
 export function createAuth({ configuration, store, clock = () => Date.now() }) {
@@ -127,7 +129,7 @@ export function createAuth({ configuration, store, clock = () => Date.now() }) {
 
   async function listUsers() {
     const { users } = await userRecords();
-    return users.map(user => ({ username: user.username, name: user.name, active: user.active !== false }));
+    return users.map(user => ({ username: user.username, name: user.name, active: user.active !== false, stationNumber: stationKey(user.stationNumber) }));
   }
 
   async function createUser(input) {
@@ -136,11 +138,13 @@ export function createAuth({ configuration, store, clock = () => Date.now() }) {
     if (!USERNAME.test(username)) throw new AuthError("Nama pengguna: 3–40 karakter, gunakan huruf kecil, angka, titik, garis bawah, atau tanda hubung.");
     if (username === cfg.username) throw new AuthError("Nama pengguna sudah dipakai.");
     if (!name) throw new AuthError("Isi nama petugas.");
+    const stationNumber = stationKey(input.stationNumber);
+    if (!stationNumber) throw new AuthError("Isi nomor SPBU petugas dengan 7 angka, misalnya 64.701.10.");
     const encoded = await passwordHash(input.password);
     await mutateUsers(users => {
       if (users.length >= 50) throw new AuthError("Batas 50 akun petugas telah tercapai.");
       if (users.some(user => user.username === username)) throw new AuthError("Nama pengguna sudah dipakai.");
-      users.push({ username, name, role: "staff", active: true, passwordHash: encoded, version: randomUUID() });
+      users.push({ username, name, stationNumber, role: "staff", active: true, passwordHash: encoded, version: randomUUID() });
     });
   }
 
@@ -148,12 +152,15 @@ export function createAuth({ configuration, store, clock = () => Date.now() }) {
     const username = normalize(input.username);
     const action = input.action;
     if (username === cfg.username) throw new AuthError("Akun pengelola diatur dari pengaturan hosting.");
-    if (!["enable", "disable", "password"].includes(action)) throw new AuthError("Perubahan akun tidak dikenal.");
+    if (!["enable", "disable", "password", "station"].includes(action)) throw new AuthError("Perubahan akun tidak dikenal.");
     const encoded = action === "password" ? await passwordHash(input.password) : null;
+    const stationNumber = action === "station" ? stationKey(input.stationNumber) : null;
+    if (action === "station" && !stationNumber) throw new AuthError("Isi nomor SPBU petugas dengan 7 angka, misalnya 64.701.10.");
     await mutateUsers(users => {
       const user = users.find(item => item.username === username);
       if (!user) throw new AuthError("Akun petugas tidak ditemukan.", 404);
       if (encoded) user.passwordHash = encoded;
+      else if (action === "station") user.stationNumber = stationNumber;
       else user.active = action === "enable";
       user.version = randomUUID();
     });

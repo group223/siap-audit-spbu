@@ -1,6 +1,7 @@
 import worker from "../worker/index.js";
 import { authConfiguration, createAuth, AuthError, clearSessionCookie } from "./auth.mjs";
 import { loginPage, usersPage, logoutPage, appAccountBar } from "./pages.mjs";
+import { createAudits } from "./audits.mjs";
 
 const PUBLIC_ASSETS = new Set(["/icon-192.png", "/icon-512.png", "/manifest.webmanifest"]);
 const SECURITY = {
@@ -52,8 +53,9 @@ async function form(request) {
   return Object.fromEntries(new URLSearchParams(new TextDecoder().decode(body)));
 }
 
-export function createApp({ getEnv = () => process.env, getStore, core = worker, clock = () => Date.now() }) {
+export function createApp({ getEnv = () => process.env, getStore, getAuditStore = getStore, core = worker, clock = () => Date.now() }) {
   if (typeof getStore !== "function") throw new Error("A server-side account store is required.");
+  const auditService = createAudits({ getStore: getAuditStore, readBody: limitedBody, clock });
   return async function handle(request, context = {}) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -85,7 +87,7 @@ export function createApp({ getEnv = () => process.env, getStore, core = worker,
         const user = await auth.login(input.username, input.password, context.ip);
         if (!user) return secure(api ? json({ error: "Nama pengguna atau kata sandi tidak sesuai.", code: "LOGIN_FAILED" }, 401) : html(loginPage({ message: "Nama pengguna atau kata sandi tidak sesuai." }), 401));
         const headers = { "set-cookie": auth.cookie(user, url.origin) };
-        return secure(api ? json({ ok: true, user: { username: user.username, name: user.name, role: user.role } }, 200, headers) : redirect("/", headers));
+        return secure(api ? json({ ok: true, user: { username: user.username, name: user.name, role: user.role, stationNumber: user.stationNumber } }, 200, headers) : redirect("/", headers));
       }
       user = await auth.currentUser(request);
       if (path === "/auth/login" && ["GET", "HEAD"].includes(request.method)) {
@@ -101,7 +103,7 @@ export function createApp({ getEnv = () => process.env, getStore, core = worker,
           : redirect("/auth/login"));
       }
       if (path === "/auth/session") {
-        return secure(json({ user: { username: user.username, name: user.name, role: user.role } }));
+        return secure(json({ user: { username: user.username, name: user.name, role: user.role, stationNumber: user.stationNumber } }));
       }
       if (path === "/akun" || path.startsWith("/auth/users")) {
         if (user.role !== "admin") return secure(json({ error: "Halaman ini hanya untuk pengelola.", code: "FORBIDDEN" }, 403));
@@ -119,6 +121,15 @@ export function createApp({ getEnv = () => process.env, getStore, core = worker,
         return secure(json({ error: "Halaman tidak ditemukan.", code: "NOT_FOUND" }, 404));
       }
       if (path.startsWith("/auth/")) return secure(json({ error: "Halaman tidak ditemukan.", code: "NOT_FOUND" }, 404));
+      if (path === "/api/audits" || path.startsWith("/api/audits/")) {
+        const result = await auditService(request, user);
+        const protectedResponse = secure(result);
+        // Private, cookie-specific browser cache avoids re-downloading every photo
+        // on each checklist render. The shared CDN is always forbidden to cache it.
+        if (/\/photos\//.test(path) && [200, 304].includes(result.status)) protectedResponse.headers.set("cache-control", "private, max-age=3600");
+        return request.method === "HEAD" ? new Response(null, { status: protectedResponse.status, headers: protectedResponse.headers }) : protectedResponse;
+      }
+      if (path === "/api/evidence/analyze" && user.role !== "admin" && !user.stationNumber) throw new AuthError("Akun Anda belum ditugaskan ke SPBU. Hubungi admin.", 403, "STATION_REQUIRED");
       let forwarded = request;
       if (path === "/api/evidence/analyze" && request.method === "POST") {
         const body = await limitedBody(request, 4 * 1024 * 1024);
@@ -135,10 +146,11 @@ export function createApp({ getEnv = () => process.env, getStore, core = worker,
     } catch (error) {
       const known = error instanceof AuthError;
       const status = known ? error.status : 503;
-      const message = known ? error.message : "Layanan akun belum tersedia. Coba lagi sebentar atau hubungi pengelola. Data pemeriksaan tetap tersimpan.";
+      const auditRequest = path === "/api/audits" || path.startsWith("/api/audits/");
+      const message = known ? error.message : auditRequest ? "Penyimpanan server belum tersedia. Perubahan di HP tetap disimpan dan dapat dikirim ulang." : "Layanan akun belum tersedia. Coba lagi sebentar atau hubungi pengelola. Data pemeriksaan tetap tersimpan.";
       const extra = error.retryAfter ? { "retry-after": String(error.retryAfter) } : {};
-      if (!known) console.error(JSON.stringify({ event: "account_store_unavailable" }));
-      if (api || path.startsWith("/api/")) return secure(json({ error: message, code: known ? error.code : "AUTH_STORE", retryable: false }, status, extra));
+      if (!known) console.error(JSON.stringify({ event: auditRequest ? "audit_store_unavailable" : "account_store_unavailable" }));
+      if (api || path.startsWith("/api/")) return secure(json({ error: message, code: known ? error.code : auditRequest ? "AUDIT_STORE" : "AUTH_STORE", retryable: auditRequest && !known }, status, extra));
       const adminPage = user?.role === "admin" && (path === "/akun" || path.startsWith("/auth/users"));
       return secure(html(adminPage ? usersPage(await auth.listUsers().catch(() => []), message) : loginPage({ message, configured: !!cfg }), status, extra));
     }

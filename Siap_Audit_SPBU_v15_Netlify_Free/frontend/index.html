@@ -77,7 +77,13 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #printdoc{display:none}
 @media print{body.pf{background:#fff}body.pf #app,body.pf .toast{display:none!important}body.pf #printdoc{display:block;color:#000;background:#fff;font-size:11px;line-height:1.4}#printdoc h1{font-size:18px;margin:0 0 4px}#printdoc h2{font-size:14px;margin:16px 0 4px;border-bottom:2px solid #000;break-after:avoid}#printdoc h3{font-size:12px;margin:10px 0 2px;break-after:avoid}#printdoc p{margin:2px 0}.pi{break-inside:avoid;border-top:1px solid #bbb;padding:5px 0}.pr{display:inline-block;min-width:22px;text-align:center;font-weight:700;border:1px solid #000;margin:0 6px 0 4px}.pc{margin-top:2px;font-style:italic}.pp img{width:150px;height:110px;object-fit:cover;margin:4px 4px 0 0;border:1px solid #999}}
 @media print{body::before,.hd,.nav,.fab,.foot,.btn{display:none!important}#app{max-width:none;padding:0}.card{break-inside:avoid}}
- @media screen {#app {padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px));}.fab {bottom: calc(100px + env(safe-area-inset-bottom, 0px));}.nav, .foot {bottom: 80px;}.sheet {padding-bottom: 80px;}.toast {bottom: calc(200px + env(safe-area-inset-bottom, 0px));}}
+@media screen {
+ #app{padding-bottom:calc(180px + env(safe-area-inset-bottom,0px))}
+ .fab{bottom:calc(100px + env(safe-area-inset-bottom,0px))}
+ .nav,.foot{bottom:80px}
+ .sheet{padding-bottom:80px}
+ .toast{bottom:calc(200px + env(safe-area-inset-bottom,0px))}
+}
 </style>
 </head>
 <body>
@@ -88,7 +94,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 </script>
 <script>
 (()=>{
-const seed=window.CHECKLIST_DATA||[],DB="siap-audit-spbu-v2";
+const PROFILE=window.SPBU_USER||null;
+const seed=window.CHECKLIST_DATA||[],DB=PROFILE?"siap-audit-spbu-v16-"+PROFILE.username+"-"+(PROFILE.role==="admin"?"all":PROFILE.stationNumber||"belum"):"siap-audit-spbu-v2";
 const factor={A:1,B:.8,C:.6,D:.4,E:.2,F:0};
 const groups=[...new Set(seed.map(x=>x.subElement))],elements=[...new Set(seed.map(x=>x.element))];
 const num=v=>Number(v)||0,esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -102,10 +109,19 @@ const $app=document.getElementById("app");
 /* ---------- penyimpanan ---------- */
 const dbOpen=()=>new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore("data");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 async function storedState(name){try{const db=await new Promise((res,rej)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("data"))r.result.createObjectStore("data")};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});if(db.objectStoreNames.contains("data")){const v=await new Promise((res,rej)=>{const r=db.transaction("data").objectStore("data").get("state");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});if(v)return v}}catch(e){}try{return JSON.parse(localStorage.getItem(name)||"null")}catch(e){return null}}
-async function load(){try{navigator.storage?.persist?.()}catch(e){}let changed=false;const v=await storedState(DB);if(v&&Array.isArray(v.sessions))S={...S,...v};if(!S.legacyMigrated){const old=await storedState("siap-audit-spbu-v1");S.legacyMigrated=true;changed=true;if(old&&old.items&&Object.keys(old.items).length&&!S.sessions.some(s=>s.id==="migrated-v1")){const items={};for(const [id,d] of Object.entries(old.items)){items[id]={...d,plan:old.actions?.[id]||d.plan||"",owner:old.owners?.[id]||d.owner||"",due:old.due?.[id]||d.due||""}}S.sessions.push({id:"migrated-v1",station:old.station||"SPBU",number:old.number||"",city:"",date:"",items});changed=true}}for(const s of S.sessions){s.items||={};s.evidence||={};s.aiEvidence||={};for(const x of seed){const d=s.items[x.id];if(d?.photos?.length){s.evidence[x.element]||=[];s.evidence[x.element].push(...d.photos.map(p=>({...p,sourceCode:x.code})));delete d.photos;delete s.aiEvidence[x.element];changed=true}}}changed=migratePhotoReviewState()||changed;if(changed||!v)save()}
+async function legacyLoad(){try{navigator.storage?.persist?.()}catch(e){}let changed=false;const v=await storedState(DB);if(v&&Array.isArray(v.sessions))S={...S,...v};if(!S.legacyMigrated){const old=await storedState("siap-audit-spbu-v1");S.legacyMigrated=true;changed=true;if(old&&old.items&&Object.keys(old.items).length&&!S.sessions.some(s=>s.id==="migrated-v1")){const items={};for(const [id,d] of Object.entries(old.items)){items[id]={...d,plan:old.actions?.[id]||d.plan||"",owner:old.owners?.[id]||d.owner||"",due:old.due?.[id]||d.due||""}}S.sessions.push({id:"migrated-v1",station:old.station||"SPBU",number:old.number||"",city:"",date:"",items});changed=true}}for(const s of S.sessions){s.items||={};s.evidence||={};s.aiEvidence||={};for(const x of seed){const d=s.items[x.id];if(d?.photos?.length){s.evidence[x.element]||=[];s.evidence[x.element].push(...d.photos.map(p=>({...p,sourceCode:x.code})));delete d.photos;delete s.aiEvidence[x.element];changed=true}}}changed=migratePhotoReviewState()||changed;if(changed||!v)save()}
+async function load(){
+ if(!PROFILE)return legacyLoad();
+ try{await navigator.storage?.persist?.()}catch{}
+ const saved=await storedState(DB);
+ if(saved&&Array.isArray(saved.sessions))S={...saved,sessions:saved.sessions.filter(belongsToUser)};
+ for(const session of S.sessions){session.items||={};session.evidence||={};session.aiEvidence||={};}
+ const changed=migratePhotoReviewState();if(changed)for(const session of S.sessions)if(!session._remoteOnly&&Object.values(session.evidence||{}).flat().some(p=>p.aiReview?.status==='queued'))markAuditChanged(session);
+ await persistState();startCloud().catch(afterCloudError);
+}
 let t;
 async function persistState(){let db;try{db=await dbOpen();await new Promise((res,rej)=>{const tx=db.transaction("data","readwrite");tx.objectStore("data").put(S,"state");tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});return true}catch(e){try{localStorage.setItem(DB,JSON.stringify(S));return true}catch(e2){toast("Penyimpanan penuh. Unduh cadangan lalu hapus sebagian foto.");return false}}finally{db?.close()}}
-function save(){clearTimeout(t);t=setTimeout(()=>persistState(),150)}
+function save(session=sess()){markAuditChanged(session);clearTimeout(t);t=setTimeout(()=>persistState(),150)}
 function toast(m){const e=document.getElementById("toast");e.textContent=m;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2400)}
 /* ---------- data & skor ---------- */
 const sess=()=>S.sessions.find(s=>s.id===ui.sid);
@@ -114,7 +130,7 @@ const evidence=(s,el)=>s.evidence?.[el]||[];
 const aiFor=(s,x)=>s.aiEvidence?.[x.element]?.results?.find(r=>r.code===x.code)||null;
 const aiStatusLabel=r=>({terdukung:"Terlihat",kurang_jelas:"Kurang jelas",tidak_terlihat:"Belum terlihat",tidak_dapat_dinilai_dari_foto:"Perlu cek manual"}[r]||"Belum dianalisis");
 const aiStatusClass=r=>r==="terdukung"?"good":r==="tidak_terlihat"?"bad":"";
-const done=s=>seed.filter(x=>get(s,x.id).rating).length;
+const done=s=>s._remoteOnly?(s._summary?.done||0):seed.filter(x=>get(s,x.id).rating).length;
 const status=s=>{const d=done(s);return d===0?[0,"Belum dimulai"]:d<seed.length?[1,"Berlangsung"]:[2,"Selesai"]};
 const issues=s=>seed.filter(x=>{const r=get(s,x.id).rating;return r&&r!=="A"&&r!=="X"});
 function score(s){
@@ -136,22 +152,22 @@ const cls=r=>r==="A"?"ok":r==="B"||r==="C"?"warn":r&&r!=="X"?"bad":"";
 const fdate=d=>d?new Intl.DateTimeFormat("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date(d+"T00:00:00")):"-";
 /* ---------- tampilan ---------- */
 const offline=()=>`<span class="pill ${navigator.onLine?"on":"off"}">${navigator.onLine?"Online":"Offline"}</span>`;
-function photoCardHtml(s,el,ei,p,i){const q=p.aiReview||{},labels={done:"AI selesai",checking:"Sedang diperiksa",queued:navigator.onLine?"Antrean AI":"Menunggu internet",retry_wait:"Menunggu coba ulang",failed:"Belum berhasil",retake:"Disarankan ambil ulang"};return `<div class="evidence-photo">${p.type?.startsWith("image/")?`<button class="thumb-preview" type="button" data-act="preview-evidence" data-el="${ei}" data-id="${esc(p.id)}" data-i="${i}" aria-label="Lihat foto ${i+1}"><img src="${p.data}" alt="Bukti foto ${i+1}"><span>Perbesar</span></button>`:`<span class="fileb">PDF · ${esc(p.name||"dokumen")}</span>`}<small>${labels[q.status]||"Belum diperiksa"}</small>${q.status==="failed"?`<button class="photo-retry" type="button" data-act="retry-evidence" data-el="${ei}" data-id="${esc(p.id)}">Coba lagi</button>`:""}<button class="photo-delete" type="button" data-act="rm-evidence" data-el="${ei}" data-id="${esc(p.id)}" data-i="${i}">Hapus foto</button></div>`}
+function photoCardHtml(s,el,ei,p,i){const q=p.aiReview||{},labels={done:"AI selesai",checking:"Sedang diperiksa",queued:navigator.onLine?"Antrean AI":"Menunggu internet",retry_wait:"Menunggu coba ulang",failed:"Belum berhasil",retake:"Disarankan ambil ulang"};return `<div class="evidence-photo">${p.type?.startsWith("image/")?`<button class="thumb-preview" type="button" data-act="preview-evidence" data-el="${ei}" data-id="${esc(p.id)}" data-i="${i}" aria-label="Lihat foto ${i+1}"><img src="${esc(photoSource(p))}" alt="Bukti foto ${i+1}"><span>Perbesar</span></button>`:`<span class="fileb">PDF · ${esc(p.name||"dokumen")}</span>`}<small>${labels[q.status]||"Belum diperiksa"}</small>${q.status==="failed"?`<button class="photo-retry" type="button" data-act="retry-evidence" data-el="${ei}" data-id="${esc(p.id)}">Coba lagi</button>`:""}<button class="photo-delete" type="button" data-act="rm-evidence" data-el="${ei}" data-id="${esc(p.id)}" data-i="${i}">Hapus foto</button></div>`}
 function reviewNoticesHtml(photos){return photos.map((p,i)=>{const q=p.aiReview;if(!q||!["failed","retry_wait"].includes(q.status))return "";return `<div class="review-notice" role="status"><strong>Foto ${i+1} • ${q.status==="retry_wait"?"Menunggu coba ulang otomatis":"Pemeriksaan belum berhasil"}</strong><p>${esc(q.message||"Layanan AI belum menyelesaikan pemeriksaan.")}</p><small>${q.status==="retry_wait"?`Percobaan ${Math.min((q.attempts||0)+1,MAX_PHOTO_ATTEMPTS)} dari ${MAX_PHOTO_ATTEMPTS}, setelah ${new Date(q.nextAttemptAt).toLocaleTimeString("id-ID")}.`:"Tekan Coba lagi pada foto tersebut; tidak perlu mengambil ulang."}</small></div>`}).join("")}
-function elementEvidenceHtml(s,el,ei){const photos=evidence(s,el),a=s.aiEvidence?.[el];return `<div class="evidence-box"><div class="evidence-title">Foto bukti untuk elemen ini</div><p class="hint">Ambil satu foto setiap kali. AI memeriksa otomatis di latar belakang. Anda bisa terus mengambil foto atau membuka halaman lain. Nilai A–F tetap ditentukan petugas.</p><div class="evidence-actions"><button class="btn p" data-act="open-camera" data-el="${ei}">📷 Ambil satu foto</button></div><p class="hint">Foto dan antrean tersimpan di perangkat ini. Pemeriksaan yang terputus akan dilanjutkan. Jika AI menyarankan foto ulang, foto tetap tersimpan agar petugas dapat meninjaunya.</p><div class="evidence-files"><div class="thumbs">${photos.map((p,i)=>photoCardHtml(s,el,ei,p,i)).join("")||`<span class="hint">Belum ada foto bukti.</span>`}</div></div><div class="review-notices">${reviewNoticesHtml(photos)}</div>${a?.lastRejected?`<p class="gap">Foto sebelumnya disarankan untuk diambil ulang: ${esc(a.lastRejected.message)} Silakan ambil foto ulang.</p>`:""}${a?.results?.length?`<div class="analysis-box"><strong>Hasil AI untuk elemen ini • ${a.photoReviews?.filter(q=>q.photoIndex>0).length||0} foto diperiksa • ${new Date(a.checkedAt).toLocaleString("id-ID")}</strong><p>${esc(a.summary||"Pemeriksaan selesai. Tinjau status setiap butir di bawah.")}</p><div>${a.results.map(r=>`<div class="analysis-row"><div class="tx"><b>${esc(r.code)}</b><small>${esc(r.reason||"")}${r.photoNumbers?.length?` • Foto ${r.photoNumbers.join(", ")}`:""}</small></div><span class="ai-label ${aiStatusClass(r.status)}">${aiStatusLabel(r.status)}</span></div>`).join("")}</div><p class="hint">Hasil AI adalah pemeriksaan bukti visual, bukan nilai audit.</p></div>`:""}</div>`}
+function elementEvidenceHtml(s,el,ei){const photos=evidence(s,el),a=s.aiEvidence?.[el];return `<div class="evidence-box"><div class="evidence-title">Foto bukti untuk elemen ini</div><p class="hint">Ambil satu foto setiap kali. AI memeriksa otomatis di latar belakang. Anda bisa terus mengambil foto atau membuka halaman lain. Nilai A–F tetap ditentukan petugas.</p><div class="evidence-actions"><button class="btn p" data-act="open-camera" data-el="${ei}">📷 Ambil satu foto</button></div><p class="hint">Foto dan antrean dikirim ke server di latar belakang. Saat offline, perubahan menunggu di HP sampai internet tersedia. Pemeriksaan yang terputus akan dilanjutkan. Jika AI menyarankan foto ulang, foto tetap tersimpan agar petugas dapat meninjaunya.</p><div class="evidence-files"><div class="thumbs">${photos.map((p,i)=>photoCardHtml(s,el,ei,p,i)).join("")||`<span class="hint">Belum ada foto bukti.</span>`}</div></div><div class="review-notices">${reviewNoticesHtml(photos)}</div>${a?.lastRejected?`<p class="gap">Foto sebelumnya disarankan untuk diambil ulang: ${esc(a.lastRejected.message)} Silakan ambil foto ulang.</p>`:""}${a?.results?.length?`<div class="analysis-box"><strong>Hasil AI untuk elemen ini • ${a.photoReviews?.filter(q=>q.photoIndex>0).length||0} foto diperiksa • ${new Date(a.checkedAt).toLocaleString("id-ID")}</strong><p>${esc(a.summary||"Pemeriksaan selesai. Tinjau status setiap butir di bawah.")}</p><div>${a.results.map(r=>`<div class="analysis-row"><div class="tx"><b>${esc(r.code)}</b><small>${esc(r.reason||"")}${r.photoNumbers?.length?` • Foto ${r.photoNumbers.join(", ")}`:""}</small></div><span class="ai-label ${aiStatusClass(r.status)}">${aiStatusLabel(r.status)}</span></div>`).join("")}</div><p class="hint">Hasil AI adalah pemeriksaan bukti visual, bukan nilai audit.</p></div>`:""}</div>`}
 function cameraSheet(){const el=elements[ui.camera.ei];return `<div class="camera-sheet"><section class="camera-box" role="dialog" aria-modal="true" aria-label="Kamera bukti"><div class="camera-head"><span>Ambil satu foto • ${esc(el.replace(/\s*\(\d+(\.\d+)?\)\s*$/, ""))}</span><button class="btn" data-act="cancel-camera">Tutup</button></div><div class="camera-stage"><video id="camera-video" autoplay playsinline muted></video></div><p class="camera-hint">Arahkan kamera ke bukti lalu tekan tombol foto. Foto akan langsung disimpan dan diperiksa AI.</p><div class="camera-controls"><button class="btn" data-act="cancel-camera">Batal</button><button class="camera-shutter" data-act="camera-shot" aria-label="Ambil foto"></button><span class="chip">1 foto</span></div></section></div>`}
-function previewSheet(){const q=ui.preview,s=S.sessions.find(x=>x.id===q?.sid),el=q&&elements[q.ei],photos=s&&evidence(s,el),i=photos?photos.findIndex((p,n)=>q.photoId?p.id===q.photoId:n===q.photoIndex):-1,p=i>=0?photos[i]:null;if(!q||!p)return "";return `<div class="preview-sheet" data-act="close-preview"><section class="preview-box" role="dialog" aria-modal="true" aria-label="Pratinjau foto bukti"><div class="preview-head"><span>Foto bukti ${i+1} • ${esc(el.replace(/\s*\(\d+(?:\.\d+)?\)\s*$/, ""))}</span><button class="btn" data-act="close-preview">Tutup</button></div><img class="preview-image" src="${p.data}" alt="Pratinjau foto bukti ${i+1}"></section></div>`}
+function previewSheet(){const q=ui.preview,s=S.sessions.find(x=>x.id===q?.sid),el=q&&elements[q.ei],photos=s&&evidence(s,el),i=photos?photos.findIndex((p,n)=>q.photoId?p.id===q.photoId:n===q.photoIndex):-1,p=i>=0?photos[i]:null;if(!q||!p)return "";return `<div class="preview-sheet" data-act="close-preview"><section class="preview-box" role="dialog" aria-modal="true" aria-label="Pratinjau foto bukti"><div class="preview-head"><span>Foto bukti ${i+1} • ${esc(el.replace(/\s*\(\d+(?:\.\d+)?\)\s*$/, ""))}</span><button class="btn" data-act="close-preview">Tutup</button></div><img class="preview-image" src="${esc(photoSource(p))}" alt="Pratinjau foto bukti ${i+1}"></section></div>`}
 function closeCamera(){const stream=ui.camera?.stream;if(stream)stream.getTracks().forEach(t=>t.stop());ui.camera=null}
 async function openCamera(ei){if(ui.camera)return;if(!navigator.mediaDevices?.getUserMedia){toast("Kamera langsung tidak tersedia. Buka aplikasi melalui browser HTTPS yang mendukung kamera.");return}const s=sess();if(!s)return;const camera={ei,sid:s.id,stream:null};ui.camera=camera;render(true);try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});if(ui.camera!==camera){stream.getTracks().forEach(t=>t.stop());return}camera.stream=stream;const v=document.getElementById("camera-video");if(v){v.srcObject=stream;await v.play()}}catch(err){if(ui.camera===camera){closeCamera();render(true);toast(err.name==="NotAllowedError"?"Izin kamera ditolak. Aktifkan izin kamera untuk situs ini lalu coba lagi.":"Kamera tidak dapat dibuka di perangkat ini.")}}}
-function takeCameraPhoto(){const cam=ui.camera,v=document.getElementById("camera-video"),c=document.createElement("canvas"),s=S.sessions.find(x=>x.id===cam?.sid);if(!cam||!s||!v||!v.videoWidth){toast("Kamera belum siap. Coba beberapa detik lagi.");return}const scale=Math.min(1,1800/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*scale);c.height=Math.round(v.videoHeight*scale);c.getContext("2d").drawImage(v,0,0,c.width,c.height);const ei=cam.ei,el=elements[ei],photos=s.evidence?.[el]||(s.evidence[el]=[]),photoIndex=photos.length,queued=(ui.activeReviews.length>0||ui.analysisQueue.length>0);photos.push({id:"p"+Date.now()+Math.random(),name:`bukti-${Date.now()}.jpg`,type:"image/jpeg",data:c.toDataURL("image/jpeg",.84),uploadedAt:new Date().toISOString()});closeCamera();save();ui.open[ei]=true;ui.sid=s.id;ui.view="sess";ui.tab="cek";render(true);toast(queued?"Foto tersimpan dan masuk antrean AI. Anda bisa lanjut memotret.":"Foto tersimpan. AI langsung memeriksanya.");enqueuePhotoReview(s.id,ei,photoIndex)}
+function takeCameraPhoto(){const cam=ui.camera,v=document.getElementById("camera-video"),c=document.createElement("canvas"),s=S.sessions.find(x=>x.id===cam?.sid);if(!cam||!s||!v||!v.videoWidth){toast("Kamera belum siap. Coba beberapa detik lagi.");return}const scale=Math.min(1,1800/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*scale);c.height=Math.round(v.videoHeight*scale);c.getContext("2d").drawImage(v,0,0,c.width,c.height);const ei=cam.ei,el=elements[ei],photos=s.evidence?.[el]||(s.evidence[el]=[]),photoIndex=photos.length,queued=(ui.activeReviews.length>0||ui.analysisQueue.length>0);photos.push({id:"p"+Date.now()+Math.random(),name:`bukti-${Date.now()}.jpg`,type:"image/jpeg",data:c.toDataURL("image/jpeg",.84),uploadedAt:new Date().toISOString()});closeCamera();save(s);ui.open[ei]=true;ui.sid=s.id;ui.view="sess";ui.tab="cek";render(true);toast(queued?"Foto tersimpan dan masuk antrean AI. Anda bisa lanjut memotret.":"Foto tersimpan. AI langsung memeriksanya.");enqueuePhotoReview(s.id,ei,photoIndex)}
 function vJadwal(){
- const list=S.sessions.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ const list=S.sessions.filter(s=>!s._cloud?.deleteRequested).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
  return `<header class="hd"><div class="row"><div class="ib">✓</div><h1>Siap Audit SPBU<small>Pemeriksaan internal sebelum auditor</small></h1>${offline()}</div></header>
  <div class="pad"><input class="search" data-q placeholder="Cari SPBU atau kota" aria-label="Cari audit"><h2>Jadwal audit</h2>
  ${list.length?list.map(s=>{const [k,l]=status(s),d=done(s);return `<div class="card" data-hay="${esc((s.station+" "+s.number+" "+s.city).toLowerCase())}"><button class="sp" data-act="open" data-sid="${s.id}"><b>No. SPBU ${esc(s.number)}</b> <span style="color:var(--mut);font-size:13px">${esc(s.station)}</span><div class="meta"><span>Kota</span><span>${esc(s.city||"-")}</span><span>Tgl. periksa</span><span>${fdate(s.date)}</span><span>Status</span><span class="st s${k}">${l}</span></div><div class="mini"><i style="width:${Math.round(d/seed.length*100)}%"></i></div></button></div>`}).join(""):`<div class="empty">Belum ada jadwal pemeriksaan.<br>Ketuk Audit baru untuk memulai.</div>`}
- <p class="note">Sesi audit tersimpan di browser/perangkat ini dan belum tersinkron antarperangkat. Buat cadangan secara berkala.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="backup-all">Cadangkan semua audit</button><label class="btn" for="restore">Pulihkan cadangan</label><input id="restore" data-restore type="file" accept="application/json,.json" hidden></div></div><button class="fab" data-act="new">＋ Audit baru</button>`}
-function sheet(){const d=new Date(),iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),last=S.sessions[S.sessions.length-1]||{};
- return `<div class="sheet"><form data-form><h2 style="margin:0">Audit baru</h2><label>Nama SPBU</label><input name="station" required value="${esc(last.station||"SPBU Benua Anyar")}"><label>No. SPBU</label><input name="number" required value="${esc(last.number||"64.701.10")}"><label>Kota</label><input name="city" value="${esc(last.city||"Banjarmasin, Kalimantan Selatan")}"><label>Tanggal periksa</label><input type="date" name="date" value="${iso}"><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><button type="button" class="btn" data-act="cancel">Batal</button><button class="btn p">Buat audit</button></div></form></div>`}
+ <p class="note">Audit dan foto dikirim otomatis ke server. Pastikan status sinkron selesai sebelum membersihkan data HP. Cadangan terpisah tetap dapat diunduh.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="backup-all">Cadangkan semua audit</button><label class="btn" for="restore">Pulihkan cadangan</label><input id="restore" data-restore type="file" accept="application/json,.json" hidden></div></div><button class="fab" data-act="new">＋ Audit baru</button>`}
+function sheet(){const editing=ui.editSid&&S.sessions.find(x=>x.id===ui.editSid);const d=new Date(),iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),last=editing||S.sessions[S.sessions.length-1]||{};const assigned=PROFILE?.role!=="admin"&&stationID(PROFILE?.stationNumber);const number=editing?.number||assigned||last.number||"64.701.10";
+ return `<div class="sheet"><form data-form><h2 style="margin:0">${editing?"Ubah data audit":"Audit baru"}</h2><label>Nama SPBU</label><input name="station" required value="${esc(last.station||"SPBU Benua Anyar")}"><label>No. SPBU</label><input name="number" required value="${esc(number)}" ${assigned||editing?._cloud?.revision?"readonly":""}><label>Kota</label><input name="city" value="${esc(last.city||"Banjarmasin, Kalimantan Selatan")}"><label>Tanggal periksa</label><input type="date" name="date" value="${esc(editing?.date||iso)}"><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><button type="button" class="btn" data-act="cancel">Batal</button><button class="btn p">${editing?"Simpan perubahan":"Buat audit"}</button></div></form></div>`}
 function head(s,title,sub,back,showBar){const d=done(s);return `<header class="hd"><div class="row"><button class="ib" data-act="${back}" aria-label="Kembali">‹</button><h1>${title}<small>${sub}</small></h1>${offline()}</div>${showBar?`<div class="bar"><i style="width:${Math.round(d/seed.length*100)}%"></i></div>`:""}</header>`}
 function nav(){const t=[["cek","☷","Checklist"],["capaian","◔","Capaian"],["temuan","⚑","Temuan"]];return `<nav class="nav"><div>${t.map(([k,i,l])=>`<button class="${ui.tab===k?"on":""}" data-act="tab" data-tab="${k}"><span>${i}</span>${l}</button>`).join("")}</div></nav>`}
 function vCek(s){
@@ -175,20 +191,20 @@ function vCapaian(s){
  ${chk(s)}<h2>Per elemen</h2><div class="card">${elements.map(el=>{const sub=c.det.filter(g=>g.element===el),dn=sub.reduce((n,g)=>n+g.done,0),tt=sub.reduce((n,g)=>n+g.total,0),pt=sub.reduce((n,g)=>n+(g.score||0),0);return `<div class="rowx"><div class="l">${esc(el.replace(/\s*\(\d+(\.\d+)?\)\s*$/,""))}<small>${dn}/${tt} butir • maks ${maxOf(el)}</small></div><span class="chip ${dn===tt?"ok":""}">${dn===tt?fmt(pt)+" poin":"Belum lengkap"}</span></div>`}).join("")}</div>
  <h2>Per subelemen</h2><div class="card">${c.det.map(g=>`<div class="rowx"><div class="l">${esc(g.name.replace(/\s*\(\d+(\.\d+)?\)\s*$/,""))}<small>${g.done}/${g.total} butir${g.listed<g.base-.001?" • bobot terdaftar "+fmt(g.listed)+" dari "+fmt(g.base)+", sisanya diperkirakan proporsional":""}</small></div><span class="chip ${g.score!==null?"ok":""}">${g.score===null?"Menunggu":fmt(g.score)+" / "+fmt(g.base)}</span></div>`).join("")}</div>
  <p class="note">Simulasi internal, bukan nilai resmi auditor. Rumus sudah dicocokkan dengan RUMUS_AUDIT.xlsx: butir X dikeluarkan, nilai dinormalkan per bagian atau subelemen, dan elemen adalah jumlah subelemennya. Nilai D (0,4) dan E (0,2) belum terverifikasi karena tidak muncul di contoh. Subelemen 5.2 hanya memuat bobot butir 10,6 dari 13, sisanya diperkirakan proporsional.</p>
- <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" data-act="backup">Cadangkan audit (dengan foto)</button><button class="btn" data-act="export">Unduh laporan (JSON)</button><button class="btn" data-act="print-plain">Cetak ringkas</button><button class="btn" data-act="print-full">Cetak lengkap + foto</button><button class="btn d" data-act="del">Hapus audit ini</button></div></div>`+nav()}
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" data-act="backup">Cadangkan audit (dengan foto)</button><button class="btn" data-act="export">Unduh laporan (JSON)</button><button class="btn" data-act="print-plain">Cetak ringkas</button><button class="btn" data-act="print-full">Cetak lengkap + foto</button><button class="btn" data-act="edit-audit">Ubah data audit</button>${PROFILE?`<button class="btn" data-act="cloud-history">Riwayat server</button>`:""}<button class="btn d" data-act="del">Hapus audit ini</button></div></div>`+nav()}
 function vTemuan(s){
  const is=issues(s);
  return head(s,"Tindak lanjut","No. SPBU "+esc(s.number)+" • "+is.length+" temuan","back-j",false)+`<div class="pad">${is.length?is.map(x=>{const d=get(s,x.id);return `<div class="card"><b style="font-size:13.5px">${esc(x.code)} <span class="chip ${cls(d.rating)}">Nilai ${d.rating}</span></b><p style="margin:7px 0;font-size:13px">${esc(x.text)}</p>${d.comment?`<p class="hint">Catatan: ${esc(d.comment)}</p>`:""}<div class="act"><input data-f="plan" data-id="${esc(x.id)}" placeholder="Rencana perbaikan" value="${esc(d.plan||"")}"><input data-f="owner" data-id="${esc(x.id)}" placeholder="Penanggung jawab" value="${esc(d.owner||"")}"><input type="date" data-f="due" data-id="${esc(x.id)}" aria-label="Target selesai" value="${esc(d.due||"")}"><button class="btn ${d.actionDone?"p":""}" data-act="fixed" data-id="${esc(x.id)}">${d.actionDone?"✓ Sudah diperbaiki":"Tandai sudah diperbaiki"}</button></div></div>`}).join(""):`<div class="empty">Belum ada temuan.<br>Butir bernilai B sampai F akan muncul di sini.</div>`}</div>`+nav()}
 function render(keep){
  const s=sess();let h;
  if(ui.view==="jadwal"||!s)h=vJadwal();else if(ui.view==="item")h=vItem(s);else h=ui.tab==="cek"?vCek(s):ui.tab==="capaian"?vCapaian(s):vTemuan(s);
- $app.innerHTML=aiProgressHtml()+h+(ui.sheet?sheet():"")+(ui.camera?cameraSheet():"")+(ui.preview?previewSheet():"");if(ui.camera?.stream){const v=document.getElementById("camera-video");if(v){v.srcObject=ui.camera.stream;v.play().catch(()=>{})}}if(!keep)window.scrollTo(0,0);
+ $app.innerHTML=aiProgressHtml()+h+(ui.sheet?sheet():"")+(ui.camera?cameraSheet():"")+(ui.preview?previewSheet():"")+cloudSheetHtml();if(ui.camera?.stream){const v=document.getElementById("camera-video");if(v){v.srcObject=ui.camera.stream;v.play().catch(()=>{})}}if(!keep)window.scrollTo(0,0);
 }
 /* ---------- bukti foto ---------- */
 const MAX_PHOTO_ATTEMPTS=3;
 let queueWakeTimer=null;
 function migratePhotoReviewState(){let changed=false;for(const s of S.sessions){for(const el of elements){const photos=evidence(s,el),a=s.aiEvidence?.[el];photos.forEach((p,i)=>{if(!p.id){p.id="p"+Date.now()+Math.random();changed=true}const old=a?.photoReviews?.find(r=>r.photoId===p.id||(r.photoName&&p.name&&r.photoName===p.name)||(!r.photoId&&r.photoIndex===i+1));if(old&&!old.photoId){old.photoId=p.id;changed=true}if(!p.aiReview&&p.type?.startsWith("image/")){p.aiReview=old?{status:"done",attempts:0,checkedAt:old.checkedAt||a?.checkedAt}:{status:"queued",attempts:0,nextAttemptAt:0,message:"Foto tersimpan; menunggu pemeriksaan AI."};changed=true}else if(p.aiReview?.status==="checking"){p.aiReview={...p.aiReview,status:p.aiReview.attempts>=MAX_PHOTO_ATTEMPTS?"failed":"queued",nextAttemptAt:0,message:"Pemeriksaan sebelumnya terputus. Foto tetap tersimpan."};changed=true}});if(a?.lastError){delete a.lastError;changed=true}}}return changed}
-function pendingPhotoJobs(){const jobs=[];for(const s of S.sessions)elements.forEach((el,ei)=>evidence(s,el).forEach(p=>{if(["queued","retry_wait"].includes(p.aiReview?.status))jobs.push({sid:s.id,ei,photoId:p.id,nextAttemptAt:Number(p.aiReview.nextAttemptAt)||0})}));return jobs.sort((a,b)=>a.nextAttemptAt-b.nextAttemptAt)}
+function pendingPhotoJobs(){const jobs=[];for(const s of S.sessions.filter(x=>!x._remoteOnly&&!x._cloud?.deleteRequested))elements.forEach((el,ei)=>evidence(s,el).forEach(p=>{if(["queued","retry_wait"].includes(p.aiReview?.status))jobs.push({sid:s.id,ei,photoId:p.id,nextAttemptAt:Number(p.aiReview.nextAttemptAt)||0})}));return jobs.sort((a,b)=>a.nextAttemptAt-b.nextAttemptAt)}
 function jobPhoto(job){const s=S.sessions.find(x=>x.id===job.sid),el=elements[job.ei],photos=s&&evidence(s,el),index=photos?.findIndex(p=>p.id===job.photoId)??-1;return{s,el,photos,index,photo:index>=0?photos[index]:null}}
 function aiProgressHtml(){const count=ui.analysisQueue.length;if(!ui.activeReviews.length&&!count)return "";const next=ui.analysisQueue.length?Math.max(Number(S.aiRetryAfter)||0,...ui.analysisQueue.map(x=>x.nextAttemptAt||0).sort((a,b)=>a-b).slice(0,1)):0;const msg=!navigator.onLine?`${count+ui.activeReviews.length} foto tersimpan. Pemeriksaan dilanjutkan saat internet tersambung.`:ui.activeReviews.length?`AI sedang memeriksa foto${count?` • ${count} foto menunggu`:""}. Anda tetap bisa memotret dan membuka halaman lain.`:`${count} foto menunggu pemeriksaan${next>Date.now()?` • dilanjutkan setelah ${new Date(next).toLocaleTimeString("id-ID")}`:""}. Foto tetap tersimpan.`;return `<div class="ai-progress" role="status">${esc(msg)}</div>`}
 function enqueuePhotoReview(sid,ei,photoIndex,manual=false){const s=S.sessions.find(x=>x.id===sid),p=s&&evidence(s,elements[ei])[photoIndex];if(!p||ui.activeReviews.some(x=>x.photoId===p.id))return;if(!p.id)p.id="p"+Date.now()+Math.random();if(p.aiReview?.status==="done"&&!manual)return;p.aiReview={status:"queued",attempts:manual?0:p.aiReview?.attempts||0,nextAttemptAt:0,message:navigator.onLine?"Menunggu giliran pemeriksaan AI.":"Menunggu koneksi internet. Foto tetap tersimpan."};save();pumpPhotoReviews()}
@@ -196,35 +212,317 @@ function pumpPhotoReviews(){clearTimeout(queueWakeTimer);ui.analysisQueue=pendin
 function mergePhotoResults(previous,review,criteria){const oldReviews=(previous?.photoReviews||[]).filter(r=>!review?.photoId||r.photoId!==review.photoId);if(!oldReviews.length&&previous?.results?.length&&!previous?.photoReviews)oldReviews.push({photoIndex:0,summary:previous.summary||"",results:previous.results});if(review)oldReviews.push(review);const rank={terdukung:4,kurang_jelas:3,tidak_terlihat:2,tidak_dapat_dinilai_dari_foto:1};const results=oldReviews.length?criteria.map(x=>{const hits=oldReviews.flatMap(q=>(q.results||[]).filter(r=>r.code===x.code).map(r=>({...r,photoIndex:q.photoIndex})));if(!hits.length)return{code:x.code,status:"tidak_dapat_dinilai_dari_foto",reason:"Belum ada hasil pemeriksaan untuk butir ini.",photoNumbers:[]};const best=Math.max(...hits.map(r=>rank[r.status]||0)),chosen=hits.filter(r=>(rank[r.status]||0)===best),nums=[...new Set(chosen.map(r=>r.photoIndex).filter(n=>n>0))].sort((a,b)=>a-b);return{code:x.code,status:chosen[0].status,reason:[...new Set(chosen.map(r=>r.reason).filter(Boolean))].slice(0,2).join("; "),photoNumbers:nums}}):[];return{photoReviews:oldReviews,results}}
 function reindexPhotoReviews(ai,removedIndex){const deleted=removedIndex+1,shift=n=>n>deleted?n-1:n;ai.photoReviews=(ai.photoReviews||[]).map(r=>({...r,photoIndex:shift(r.photoIndex),results:(r.results||[]).map(x=>({...x,photoNumbers:(x.photoNumbers||[]).filter(n=>n!==deleted).map(shift)}))}));ai.results=(ai.results||[]).map(x=>({...x,photoNumbers:(x.photoNumbers||[]).filter(n=>n!==deleted).map(shift)}))}
 function removeEvidencePhoto(s,el,index){const photos=evidence(s,el),p=photos[index];if(!p)return;photos.splice(index,1);const a=s.aiEvidence?.[el];if(a){a.photoReviews=(a.photoReviews||[]).filter(r=>r.photoId?r.photoId!==p.id:r.photoIndex!==index+1);reindexPhotoReviews(a,index);Object.assign(a,mergePhotoResults(a,null,seed.filter(x=>x.element===el)));a.summary=`${a.photoReviews.filter(x=>x.photoIndex>0).length} foto diperiksa. Hasil tiap butir menggabungkan bukti foto yang masih tersimpan.`}if(ui.preview?.photoId===p.id)ui.preview=null}
-async function runPhotoReview(job){const{s,el,photo}=jobPhoto(job);if(!s||!photo)return;const active={sid:job.sid,ei:job.ei,photoId:photo.id};ui.activeReviews.push(active);photo.aiReview={...photo.aiReview,status:"checking",attempts:(photo.aiReview?.attempts||0)+1,nextAttemptAt:0,message:"Sedang memeriksa foto."};const criteria=seed.filter(x=>x.element===el).map(x=>({code:x.code,subElement:x.subElement,text:x.text}));const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),55000);try{await persistState();render(true);const res=await fetch("/api/evidence/analyze",{method:"POST",headers:{"content-type":"application/json"},signal:controller.signal,body:JSON.stringify({element:el,photos:[{name:photo.name,type:photo.type,data:photo.data}],criteria})});let body={};try{body=await res.json()}catch{}if(!body||typeof body!=="object"||Array.isArray(body))body={};if(!res.ok){if((res.status===401||res.status===403)&&!body.code){body.error="Sesi akun belum tersedia. Muat ulang aplikasi dan masuk dengan akun tim yang diizinkan. Foto tetap tersimpan.";body.code="AUTH_REQUIRED";body.retryable=false}const error=new Error(body.error||(res.status===503?"Layanan AI sedang sibuk atau belum tersedia.":"Layanan AI belum dapat menyelesaikan pemeriksaan."));Object.assign(error,{code:body.code||"AI_UNAVAILABLE",retryable:typeof body.retryable==="boolean"?body.retryable:res.status>=500||res.status===429,retryAfter:Math.max(Number(body.retryAfter)||0,Number(res.headers.get("retry-after"))||0)});throw error}if(!body.photoCheck||!["layak","ulang"].includes(body.photoCheck.status)||!String(body.photoCheck.reason||"").trim())throw Object.assign(new Error("AI belum memastikan kelayakan foto. Foto tetap tersimpan."),{code:"AI_INVALID_RESPONSE",retryable:true});const current=jobPhoto(job);if(!current.photo)return;s.aiEvidence||={};const previous=s.aiEvidence[el]||{results:[],photoReviews:[]};if(body.photoCheck.status==="ulang"){photo.aiReview={status:"retake",attempts:photo.aiReview.attempts,checkedAt:new Date().toISOString(),model:body.model,message:String(body.photoCheck.reason).slice(0,500)};s.aiEvidence[el]||=previous;s.aiEvidence[el].lastRejected={photoName:photo.name,message:String(body.photoCheck.reason).slice(0,500),checkedAt:new Date().toISOString()};toast(`Foto belum layak: ${s.aiEvidence[el].lastRejected.message} Foto tetap disimpan; sebaiknya ambil ulang.`)}else{const statuses=new Set(["terdukung","kurang_jelas","tidak_terlihat","tidak_dapat_dinilai_dari_foto"]),results=criteria.map(x=>{const r=(body.results||[]).find(q=>q.code===x.code);return{code:x.code,status:statuses.has(r?.status)?r.status:"tidak_dapat_dinilai_dari_foto",reason:String(r?.reason||"Hasil belum mencakup butir ini. Perlu cek manual.").slice(0,500),photoNumbers:[current.index+1]}}),checkedAt=new Date().toISOString(),review={photoId:photo.id,photoIndex:current.index+1,photoName:photo.name,checkedAt,model:body.model,summary:String(body.summary||"Pemeriksaan foto selesai."),results},merged=mergePhotoResults(previous,review,criteria);photo.aiReview={status:"done",attempts:photo.aiReview.attempts,checkedAt,model:body.model};s.aiEvidence[el]={checkedAt,summary:`${merged.photoReviews.filter(x=>x.photoIndex>0).length} foto diperiksa. Hasil tiap butir menggabungkan bukti foto tersebut.`,...merged};delete s.aiEvidence[el].lastError;delete s.aiEvidence[el].lastRejected}}catch(error){if(jobPhoto(job).photo){const offline=!navigator.onLine,attempts=photo.aiReview.attempts,retryable=error.retryable!==false;if(offline){photo.aiReview={status:"queued",attempts:Math.max(0,attempts-1),nextAttemptAt:0,message:"Menunggu koneksi internet. Foto tetap tersimpan."}}else{const delay=Math.max(Number(error.retryAfter)||0,attempts===1?15:30)*1000,willRetry=retryable&&attempts<MAX_PHOTO_ATTEMPTS,message=error.name==="AbortError"?"Waktu tunggu AI habis. Foto tetap tersimpan.":String(error.message||"Pemeriksaan AI belum selesai. Foto tetap tersimpan.");photo.aiReview={status:willRetry?"retry_wait":"failed",attempts,nextAttemptAt:willRetry?Date.now()+delay:0,message,code:error.name==="AbortError"?"AI_TIMEOUT":error.code||"AI_NETWORK"};if(retryable)S.aiRetryAfter=Math.max(Number(S.aiRetryAfter)||0,Date.now()+delay);if(!willRetry)toast("Pemeriksaan belum berhasil. Foto tetap tersimpan; tekan Coba lagi untuk mengulang.")}}}finally{clearTimeout(timeout);ui.activeReviews=ui.activeReviews.filter(x=>x!==active);await persistState();pumpPhotoReviews()}}
+async function runPhotoReview(job){const{s,el,photo}=jobPhoto(job);if(!s||!photo)return;const active={sid:job.sid,ei:job.ei,photoId:photo.id};ui.activeReviews.push(active);photo.aiReview={...photo.aiReview,status:"checking",attempts:(photo.aiReview?.attempts||0)+1,nextAttemptAt:0,message:"Sedang memeriksa foto."};const criteria=seed.filter(x=>x.element===el).map(x=>({code:x.code,subElement:x.subElement,text:x.text}));const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),55000);try{markAuditChanged(s);await persistState();render(true);if(!photo.data)await ensurePhotoData(photo);const res=await fetch("/api/evidence/analyze",{method:"POST",headers:{"content-type":"application/json"},signal:controller.signal,body:JSON.stringify({element:el,photos:[{name:photo.name,type:photo.type,data:photo.data}],criteria})});let body={};try{body=await res.json()}catch{}if(!body||typeof body!=="object"||Array.isArray(body))body={};if(!res.ok){if((res.status===401||res.status===403)&&!body.code){body.error="Sesi akun belum tersedia. Muat ulang aplikasi dan masuk dengan akun tim yang diizinkan. Foto tetap tersimpan.";body.code="AUTH_REQUIRED";body.retryable=false}const error=new Error(body.error||(res.status===503?"Layanan AI sedang sibuk atau belum tersedia.":"Layanan AI belum dapat menyelesaikan pemeriksaan."));Object.assign(error,{code:body.code||"AI_UNAVAILABLE",retryable:typeof body.retryable==="boolean"?body.retryable:res.status>=500||res.status===429,retryAfter:Math.max(Number(body.retryAfter)||0,Number(res.headers.get("retry-after"))||0)});throw error}if(!body.photoCheck||!["layak","ulang"].includes(body.photoCheck.status)||!String(body.photoCheck.reason||"").trim())throw Object.assign(new Error("AI belum memastikan kelayakan foto. Foto tetap tersimpan."),{code:"AI_INVALID_RESPONSE",retryable:true});const current=jobPhoto(job);if(!current.photo)return;s.aiEvidence||={};const previous=s.aiEvidence[el]||{results:[],photoReviews:[]};if(body.photoCheck.status==="ulang"){photo.aiReview={status:"retake",attempts:photo.aiReview.attempts,checkedAt:new Date().toISOString(),model:body.model,message:String(body.photoCheck.reason).slice(0,500)};s.aiEvidence[el]||=previous;s.aiEvidence[el].lastRejected={photoName:photo.name,message:String(body.photoCheck.reason).slice(0,500),checkedAt:new Date().toISOString()};toast(`Foto belum layak: ${s.aiEvidence[el].lastRejected.message} Foto tetap disimpan; sebaiknya ambil ulang.`)}else{const statuses=new Set(["terdukung","kurang_jelas","tidak_terlihat","tidak_dapat_dinilai_dari_foto"]),results=criteria.map(x=>{const r=(body.results||[]).find(q=>q.code===x.code);return{code:x.code,status:statuses.has(r?.status)?r.status:"tidak_dapat_dinilai_dari_foto",reason:String(r?.reason||"Hasil belum mencakup butir ini. Perlu cek manual.").slice(0,500),photoNumbers:[current.index+1]}}),checkedAt=new Date().toISOString(),review={photoId:photo.id,photoIndex:current.index+1,photoName:photo.name,checkedAt,model:body.model,summary:String(body.summary||"Pemeriksaan foto selesai."),results},merged=mergePhotoResults(previous,review,criteria);photo.aiReview={status:"done",attempts:photo.aiReview.attempts,checkedAt,model:body.model};s.aiEvidence[el]={checkedAt,summary:`${merged.photoReviews.filter(x=>x.photoIndex>0).length} foto diperiksa. Hasil tiap butir menggabungkan bukti foto tersebut.`,...merged};delete s.aiEvidence[el].lastError;delete s.aiEvidence[el].lastRejected}}catch(error){if(jobPhoto(job).photo){const offline=!navigator.onLine,attempts=photo.aiReview.attempts,retryable=error.retryable!==false;if(offline){photo.aiReview={status:"queued",attempts:Math.max(0,attempts-1),nextAttemptAt:0,message:"Menunggu koneksi internet. Foto tetap tersimpan."}}else{const delay=Math.max(Number(error.retryAfter)||0,attempts===1?15:30)*1000,willRetry=retryable&&attempts<MAX_PHOTO_ATTEMPTS,message=error.name==="AbortError"?"Waktu tunggu AI habis. Foto tetap tersimpan.":String(error.message||"Pemeriksaan AI belum selesai. Foto tetap tersimpan.");photo.aiReview={status:willRetry?"retry_wait":"failed",attempts,nextAttemptAt:willRetry?Date.now()+delay:0,message,code:error.name==="AbortError"?"AI_TIMEOUT":error.code||"AI_NETWORK"};if(retryable)S.aiRetryAfter=Math.max(Number(S.aiRetryAfter)||0,Date.now()+delay);if(!willRetry)toast("Pemeriksaan belum berhasil. Foto tetap tersimpan; tekan Coba lagi untuk mengulang.")}}}finally{clearTimeout(timeout);ui.activeReviews=ui.activeReviews.filter(x=>x!==active);markAuditChanged(s);await persistState();pumpPhotoReviews()}}
 
 /* ---------- aksi ---------- */
-function setItem(s,id,fn){const d=get(s,id);fn(d);s.items[id]=d;save()}
+function setItem(s,id,fn){const d=get(s,id);fn(d);s.items[id]=d;save(s)}
+/*cloud:start*/
+const cloud = { busy:false, catalogBusy:false, error:"", paused:false, timer:null, delay:5000, legacy:[], dialog:null, loadingAudit:null, backupBusy:false };
+const stationID = value => { const n=String(value||"").replace(/[^0-9]/g,""); return /^\d{7}$/.test(n)?n:""; };
+const newAuditID = () => "s"+Date.now()+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
+const photoSource = p => p.data || p.remoteUrl || "";
+const cloudPath = s => "/api/audits/"+stationID(s.number)+"/"+encodeURIComponent(s.id);
+const belongsToUser = s => !PROFILE || PROFILE.role==="admin" || !!stationID(PROFILE.stationNumber)&&stationID(s.number)===stationID(PROFILE.stationNumber);
+function cloudInfo(s){return s._cloud||=( {revision:0,seq:0,dirty:false} );}
+function markAuditChanged(s){
+ if(!PROFILE||!s||s._remoteOnly)return;
+ const c=cloudInfo(s);c.seq=(c.seq||0)+1;c.dirty=true;c.error="";
+ scheduleCloud();updateCloudStatus();
+}
+function scheduleCloud(ms=1400){
+ if(!PROFILE||cloud.paused)return;
+ clearTimeout(cloud.timer);cloud.timer=setTimeout(()=>syncCloud(),ms);
+}
+function updateCloudStatus(){
+ if(!PROFILE)return;
+ const el=document.getElementById("cloud-status");if(!el)return;
+ const pending=S.sessions.filter(s=>s._cloud?.dirty||s._cloud?.pending||s._cloud?.deleteRequested);
+ const conflicts=pending.filter(s=>s._cloud?.conflict);
+ const unassigned=PROFILE.role!=="admin"&&!stationID(PROFILE.stationNumber);
+ let message=unassigned?"Akun belum ditugaskan ke SPBU. Hubungi admin.":!navigator.onLine?"Offline · perubahan menunggu dikirim dari HP ini.":cloud.busy?"Mengirim audit dan foto ke server…":cloud.catalogBusy?"Memuat daftar audit dari server…":pending.length?pending.length+" audit belum selesai tersinkron.":"Audit dan foto tersimpan di server.";
+ if(cloud.error)message=cloud.error;
+ el.innerHTML='<p class="'+(pending.length||cloud.error||unassigned?'cloud-warn':'')+'">'+esc(message)+'</p>'+
+  (!unassigned?'<button type="button" data-act="cloud-retry">'+(cloud.paused?'Masuk kembali':'Sinkronkan sekarang')+'</button><button type="button" data-act="cloud-refresh">Perbarui daftar</button>':'')+
+  (PROFILE.role==='admin'?'<button type="button" data-act="cloud-trash">Audit dihapus</button>':'')+
+  (cloud.legacy.length?'<p>'+cloud.legacy.length+' audit dari versi lama masih di browser ini. <button type="button" data-act="cloud-import">Pindahkan ke server</button></p>':'')+
+  conflicts.map(s=>'<p class="cloud-warn">SPBU '+esc(s.number)+': '+esc(s._cloud.error||'Diubah dari perangkat lain.')+' <button type="button" data-act="cloud-copy" data-sid="'+esc(s.id)+'">Simpan sebagai salinan</button><button type="button" data-act="cloud-pull" data-sid="'+esc(s.id)+'">Muat versi server</button></p>').join('');
+}
+async function cloudFetch(path,options={}){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+ try{
+  const res=await fetch(path,{...options,credentials:"same-origin",signal:controller.signal,headers:{accept:"application/json",...(options.headers||{})}});
+  if(!res.ok){let value={};try{value=await res.json()}catch{}
+   const error=new Error(value.error||"Server belum dapat dihubungi. Data di HP tetap disimpan.");
+   Object.assign(error,{status:res.status,code:value.code||"CLOUD_UNAVAILABLE",retryAfter:Number(res.headers.get("retry-after"))||0});
+   if(res.status===401){cloud.paused=true;cloud.error="Sesi berakhir. Masuk kembali dengan akun yang sama untuk mengirim perubahan.";updateCloudStatus();}
+   throw error;
+  }
+  return res;
+ }catch(e){if(e.name==='AbortError')throw new Error('Pengiriman melewati waktu tunggu. Data di HP tetap disimpan dan akan dicoba lagi.');throw e}
+ finally{clearTimeout(timer)}
+}
+async function cloudJSON(path,body){return (await cloudFetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)})).json();}
+function metadataAudit(s,uploadedOnly=false){
+ const evidence={};
+ for(const [el,photos]of Object.entries(s.evidence||{}))evidence[el]=(photos||[]).filter(p=>!uploadedOnly||p.cloudHash).map(p=>({id:p.id,name:p.name||"foto.jpg",type:p.type,uploadedAt:p.uploadedAt||"",...(p.cloudHash?{cloudHash:p.cloudHash}:{}),...(p.aiReview?{aiReview:structuredClone(p.aiReview)}:{})}));
+ return{id:s.id,station:s.station,number:s.number,city:s.city||"",date:s.date,items:structuredClone(s.items||{}),evidence,aiEvidence:structuredClone(s.aiEvidence||{})};
+}
+async function sendPending(s){
+ const c=cloudInfo(s),op=c.pending;if(!op)return;
+ const result=await cloudJSON(cloudPath(s),op);
+ c.revision=result.revision;c.updatedAt=result.updatedAt;c.remoteRevision=result.revision;
+ if(op.complete&&c.seq===op.localSequence&&!c.deleteRequested){
+  c.dirty=false;
+  for(const photo of Object.values(s.evidence||{}).flat())if(photo.cloudHash&&photo.remoteUrl&&!['queued','retry_wait','checking'].includes(photo.aiReview?.status))delete photo.data;
+ }
+ delete c.pending;delete c.error;delete c.conflict;
+ await persistState();
+}
+async function saveCloudMetadata(s,audit,sequence,complete){
+ const c=cloudInfo(s);
+ c.pending={audit,baseRevision:c.revision||0,mutationID:"m"+(globalThis.crypto?.randomUUID?.()||Date.now()+Math.random().toString(36).slice(2)),localSequence:sequence,complete};
+ // The exact pending operation is durable, so a lost response can be retried
+ // with the same mutation ID instead of duplicating or overwriting a revision.
+ await persistState();await sendPending(s);
+}
+function photoBytes(photo){
+ const match=/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)$/.exec(photo.data||"");
+ if(!match)throw new Error('Isi foto tidak tersedia. Pulihkan dari cadangan atau muat ulang foto server.');
+ const raw=atob(match[2]);const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+ return bytes;
+}
+async function ensurePhotoData(photo){
+ if(photo.data)return photo.data;
+ if(!photo.remoteUrl)throw new Error('Foto belum tersedia di perangkat atau server.');
+ const response=await cloudFetch(photo.remoteUrl,{headers:{accept:'image/*'}}),blob=await response.blob();
+ photo.data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Foto belum dapat dibaca.'));reader.readAsDataURL(blob)});
+ return photo.data;
+}
+async function hydratePhotos(s){
+ const photos=Object.values(s.evidence||{}).flat();let index=0;
+ await Promise.all(Array.from({length:Math.min(3,photos.length)},async()=>{for(;;){const at=index++;if(at>=photos.length)return;await ensurePhotoData(photos[at])}}));
+}
+async function syncOneAudit(s){
+ if(!belongsToUser(s))throw Object.assign(new Error('Audit berada di SPBU lain. Hubungi admin untuk memindahkannya.'),{code:'STATION_FORBIDDEN',status:403});
+ const c=cloudInfo(s);
+ if(!stationID(s.number))throw Object.assign(new Error('Isi nomor SPBU dengan 7 angka melalui Ubah data audit.'),{code:'AUDIT_INPUT',status:400});
+ if(c.pending)await sendPending(s);
+ if(!c.dirty&&!c.deleteRequested&&!c.pending)return;
+ if(c.deleteRequested){
+  if(c.revision)await cloudJSON(cloudPath(s)+'/delete',{baseRevision:c.revision});
+  S.sessions=S.sessions.filter(x=>x!==s);await persistState();return;
+ }
+ const sequence=c.seq||0,snapshot=structuredClone(s);
+ if(!c.revision)await saveCloudMetadata(s,metadataAudit(snapshot,true),sequence,false);
+ for(const [el,photos]of Object.entries(snapshot.evidence||{}))for(const p of photos){
+  if(p.cloudHash)continue;
+  if(!p.data)await ensurePhotoData(p);
+  const result=await(await cloudFetch(cloudPath(s)+'/photos/'+encodeURIComponent(p.id),{method:'POST',headers:{'content-type':p.type},body:photoBytes(p)})).json();
+  p.cloudHash=result.cloudHash;p.remoteUrl=result.remoteUrl;
+  const live=(s.evidence?.[el]||[]).find(x=>x.id===p.id);if(live){live.cloudHash=result.cloudHash;live.remoteUrl=result.remoteUrl}
+  await persistState();
+ }
+ await saveCloudMetadata(s,metadataAudit(snapshot),sequence,true);
+}
+async function syncCloud(){
+ if(!PROFILE||cloud.busy||cloud.paused||!navigator.onLine)return;
+ if(PROFILE.role!=="admin"&&!stationID(PROFILE.stationNumber))return;
+ cloud.busy=true;cloud.error="";let retry=false;
+ updateCloudStatus();
+ try{
+  for(const s of [...S.sessions]){
+   const c=s._cloud;if(!c||s._remoteOnly||c.conflict||(!c.dirty&&!c.pending&&!c.deleteRequested))continue;
+   try{await syncOneAudit(s)}catch(e){
+    c.error=e.message;
+    if(e.status===409){c.conflict=true;cloud.error='Ada perubahan dari perangkat lain. Pilih salinan atau versi server di bawah.';}
+    else{cloud.error=e.message;retry=e.status!==400&&e.status!==403&&e.status!==413&&e.status!==415&&e.status!==401;}
+    if(e.status===401||!e.status||e.status>=500||e.status===429)break;
+   }
+  }
+  cloud.delay=retry?Math.min(cloud.delay*2,60000):5000;
+ }finally{
+  cloud.busy=false;await persistState();updateCloudStatus();
+  const more=S.sessions.some(s=>!s._remoteOnly&&!s._cloud?.conflict&&(s._cloud?.dirty||s._cloud?.pending||s._cloud?.deleteRequested)&&!s._cloud?.error);
+  if(retry||more)scheduleCloud(retry?cloud.delay:1000);
+ }
+}
+async function fetchCatalog(deleted=false){
+ let cursor=null;const result=[],seen=new Set();
+ do{
+  const params=new URLSearchParams();if(cursor)params.set('cursor',cursor);if(deleted)params.set('deleted','1');
+  const page=await(await cloudFetch('/api/audits'+(params.size?'?'+params:''))).json();
+  for(const x of page.audits||[])if(!seen.has(x.id)){result.push(x);seen.add(x.id)}
+  cursor=page.nextCursor||null;
+ }while(cursor);
+ return result;
+}
+async function refreshCatalog(){
+ if(!PROFILE||cloud.catalogBusy||!navigator.onLine)return;
+ cloud.catalogBusy=true;cloud.error='';updateCloudStatus();
+ try{
+  const list=await fetchCatalog();const known=new Set(list.map(x=>x.id));
+  // A listing can briefly lag a newly-created object. Confirm absence with a
+  // strong direct read before dropping a clean browser cache entry.
+  for(const s of S.sessions){
+   if(known.has(s.id)||s._cloud?.dirty||s._cloud?.pending||s._cloud?.deleteRequested||s._cloud?.conflict)continue;
+   try{await cloudFetch(cloudPath(s))}catch(e){if(e.status===404)cloudInfo(s).serverGone=true;else throw e}
+  }
+  S.sessions=S.sessions.filter(s=>!s._cloud?.serverGone||s._cloud?.dirty||s._cloud?.pending||s._cloud?.conflict);
+  for(const meta of list){
+   let s=S.sessions.find(x=>x.id===meta.id);
+   if(!s){s={id:meta.id,station:meta.station,number:meta.number,city:meta.city,date:meta.date,items:{},evidence:{},aiEvidence:{},_remoteOnly:true,_summary:meta,_cloud:{revision:meta.revision,remoteRevision:meta.revision,seq:0,dirty:false,updatedAt:meta.updatedAt}};S.sessions.push(s)}
+   else{s._summary=meta;cloudInfo(s).remoteRevision=meta.revision;if(s._remoteOnly){Object.assign(s,{station:meta.station,number:meta.number,city:meta.city,date:meta.date});s._cloud.revision=meta.revision}}
+  }
+  await persistState();if(ui.view==='jadwal'&&!ui.sheet&&!cloud.dialog)render(true);
+ }catch(e){cloud.error=e.message}finally{cloud.catalogBusy=false;updateCloudStatus()}
+}
+async function startCloud(){
+ updateCloudStatus();
+ if(PROFILE.role==='admin'){
+  const legacy=await storedState('siap-audit-spbu-v2');
+  const migrated=new Set(S.migratedLegacyIDs||[]);
+  cloud.legacy=(legacy?.sessions||[]).filter(s=>!migrated.has(String(s.id)));
+ }
+ await refreshCatalog();scheduleCloud(200);updateCloudStatus();
+}
+async function openCloudAudit(sid,force=false){
+ const s=S.sessions.find(x=>x.id===sid);if(!s||cloud.loadingAudit)return;
+ if(!PROFILE){ui.sid=sid;ui.view='sess';ui.tab='cek';render();return}
+ if(!force&&!s._remoteOnly&&(!s._cloud?.remoteRevision||s._cloud.remoteRevision===s._cloud.revision||s._cloud.dirty)){
+  ui.sid=sid;ui.view='sess';ui.tab='cek';render();return;
+ }
+ cloud.loadingAudit=sid;cloud.error='';updateCloudStatus();
+ try{
+  const response=await(await cloudFetch(cloudPath(s))).json(),oldPhotos=new Map(Object.values(s.evidence||{}).flat().map(p=>[p.id,p]));
+  for(const photos of Object.values(response.audit.evidence||{}))for(const p of photos){const old=oldPhotos.get(p.id);if(old?.data&&old.cloudHash===p.cloudHash)p.data=old.data}
+  const replacement={...response.audit,_cloud:{revision:response.revision,remoteRevision:response.revision,seq:0,dirty:false,updatedAt:response.updatedAt}};
+  S.sessions[S.sessions.indexOf(s)]=replacement;migratePhotoReviewState();
+  if(Object.values(replacement.evidence||{}).flat().some(p=>p.aiReview?.status==='queued'))markAuditChanged(replacement);
+  await persistState();ui.sid=replacement.id;ui.view='sess';ui.tab='cek';render();pumpPhotoReviews();
+ }catch(e){cloud.error=e.message;toast(e.message)}finally{cloud.loadingAudit=null;updateCloudStatus()}
+}
+async function importLegacyAudits(){
+ if(PROFILE?.role!=='admin'||!cloud.legacy.length)return;
+ if(!confirm('Pindahkan '+cloud.legacy.length+' audit lama dari browser ini ke server? Data asal tetap tersedia sampai Anda menghapusnya sendiri.'))return;
+ const migrated=new Set(S.migratedLegacyIDs||[]);let imported=0;
+ for(const old of cloud.legacy){
+  const copy=structuredClone(old);copy.id=newAuditID();copy._cloud={revision:0,seq:0,dirty:false};delete copy._remoteOnly;delete copy._summary;
+  copy.items||={};copy.evidence||={};copy.aiEvidence||={};
+  for(const photos of Object.values(copy.evidence))for(const p of photos){delete p.cloudHash;delete p.remoteUrl}
+  S.sessions.push(copy);markAuditChanged(copy);migrated.add(String(old.id));imported++;
+ }
+ S.migratedLegacyIDs=[...migrated];cloud.legacy=[];migratePhotoReviewState();await persistState();render(true);updateCloudStatus();scheduleCloud(0);toast(imported+' audit masuk antrean pengiriman server.');
+}
+async function downloadBackup(list,name){
+ if(cloud.backupBusy)return;cloud.backupBusy=true;
+ try{
+  const full=[];
+  for(const s of list){
+   if(s._remoteOnly){const response=await(await cloudFetch(cloudPath(s))).json();full.push({...response.audit})}else full.push(structuredClone(s));
+  }
+  toast('Menyiapkan cadangan beserta foto…');
+  for(const s of full){await hydratePhotos(s);delete s._cloud;delete s._remoteOnly;delete s._summary;}
+  dl(name,makeBackup(full));toast('Cadangan beserta foto diunduh.');
+ }catch(e){cloud.error='Cadangan belum berhasil: '+e.message;toast(cloud.error);updateCloudStatus()}finally{cloud.backupBusy=false}
+}
+async function copyConflictingAudit(s){
+ if(!s||cloud.busy)return;
+ try{
+  await hydratePhotos(s);const copy=structuredClone(s);copy.id=newAuditID();copy.station+=' (salinan)';delete copy._cloud;delete copy._summary;delete copy._remoteOnly;
+  for(const photos of Object.values(copy.evidence||{}))for(const p of photos){delete p.cloudHash;delete p.remoteUrl}
+  S.sessions.push(copy);markAuditChanged(copy);
+  // Keep the original cache and its conflict flag until the new copy has
+  // reached the server. Do not discard either side of the conflict.
+  await persistState();ui.sid=copy.id;ui.view='sess';ui.tab='cek';render();updateCloudStatus();scheduleCloud(0);toast('Salinan dibuat. Tunggu sampai status tersimpan di server.');
+ }catch(e){toast(e.message)}
+}
+async function pullServerVersion(s){
+ if(!s||cloud.busy)return;
+ if(!confirm('Muat versi server? Simpan sebagai salinan terlebih dahulu bila perubahan di HP ini masih diperlukan.'))return;
+ await openCloudAudit(s.id,true);
+}
+function cloudSheetHtml(){
+ const d=cloud.dialog;if(!d)return '';
+ return '<div class="sheet"><section class="box" role="dialog" aria-modal="true" style="max-height:80vh;overflow:auto"><h2>'+esc(d.title)+'</h2>'+(d.loading?'<p>Memuat…</p>':d.error?'<p>'+esc(d.error)+'</p>':d.rows?.length?d.rows.map(r=>'<div class="rowx"><div class="l"><b>'+esc(r.label)+'</b><small>'+esc(r.detail||'')+'</small></div><button class="btn" data-act="cloud-restore" data-id="'+esc(r.id)+'" data-station="'+esc(r.station)+'" data-revision="'+esc(r.revision)+'" data-history="'+esc(r.history||'')+'">Pulihkan</button></div>').join(''):'<p>Belum ada cadangan/arsip dihapus.</p>')+'<button class="btn" data-act="cloud-close">Tutup</button></section></div>';
+}
+async function showCloudHistory(s){
+ if(!s?._cloud?.revision||s._cloud.dirty||cloud.busy){toast('Selesaikan sinkronisasi audit terlebih dahulu.');return}
+ cloud.dialog={title:'5 versi server terakhir',loading:true};render(true);
+ try{const result=await(await cloudFetch(cloudPath(s)+'/history')).json();cloud.dialog={title:'5 versi server terakhir',id:s.id,station:stationID(s.number),rows:result.versions.map(v=>({id:s.id,station:stationID(s.number),revision:s._cloud.revision,history:v.revision,label:'Versi '+v.revision,detail:new Date(v.updatedAt).toLocaleString('id-ID')+' · '+v.updatedBy}))}}catch(e){cloud.dialog={title:'Cadangan server',error:e.message}}
+ render(true);
+}
+async function showCloudTrash(){
+ if(PROFILE?.role!=='admin')return;
+ cloud.dialog={title:'Audit yang dihapus',loading:true};render(true);
+ try{const list=await fetchCatalog(true);cloud.dialog={title:'Audit yang dihapus',rows:list.map(v=>({id:v.id,station:v.stationKey,revision:v.revision,label:v.number+' · '+v.station,detail:v.date}))}}catch(e){cloud.dialog={title:'Audit yang dihapus',error:e.message}}
+ render(true);
+}
+async function restoreCloudVersion(data){
+ if(cloud.busy)return;
+ if(!confirm('Pulihkan audit dari server? Versi sekarang dicadangkan sebelum perubahan.'))return;
+ const current=S.sessions.find(s=>s.id===data.id);
+ if(current?._cloud?.dirty){toast('Simpan perubahan di HP sebagai salinan terlebih dahulu.');return}
+ try{
+  await cloudJSON('/api/audits/'+data.station+'/'+encodeURIComponent(data.id)+'/restore',{baseRevision:Number(data.revision),...(data.history?{historyRevision:Number(data.history)}:{})});
+  cloud.dialog=null;if(current)current._remoteOnly=true;await refreshCatalog();await openCloudAudit(data.id,true);toast('Audit dipulihkan.');
+ }catch(e){toast(e.message)}
+}
+function deleteCloudAudit(s){
+ if(!s||!confirm('Hapus audit ini? Audit yang sudah tersimpan di server dapat dipulihkan admin melalui Audit dihapus.'))return;
+ if(!PROFILE){S.sessions=S.sessions.filter(x=>x!==s);save();}
+ else{const c=cloudInfo(s);c.deleteRequested=true;markAuditChanged(s);persistState();scheduleCloud(0)}
+ ui.view='jadwal';ui.sid=null;render();updateCloudStatus();
+}
+function afterCloudError(error){cloud.error=error.message;toast(error.message);updateCloudStatus()}
+/*cloud:end*/
+
 /*backup:start*/
 const BACKUP_FORMAT="siap-audit-spbu-cadangan";
 const makeBackup=list=>JSON.stringify({format:BACKUP_FORMAT,versi:1,dibuat:new Date().toISOString(),sessions:list});
 function parseBackup(text,existing){const j=JSON.parse(text);if(!j||j.format!==BACKUP_FORMAT)throw new Error("format");const ids=new Set(existing),out=[];let copies=0;
  for(const s of Array.isArray(j.sessions)?j.sessions:[]){if(!s||typeof s!=="object"||(typeof s.number!=="string"&&typeof s.station!=="string"))continue;
   const obj=v=>v&&typeof v==="object"&&!Array.isArray(v)?v:{};const n={...s,items:obj(s.items),evidence:{},aiEvidence:obj(s.aiEvidence)};
-  for(const [el,list] of Object.entries(obj(s.evidence)))n.evidence[el]=(Array.isArray(list)?list:[]).filter(p=>p&&typeof p.data==="string"&&p.data.startsWith("data:image/"));
+  for(const [el,list] of Object.entries(obj(s.evidence)))n.evidence[el]=(Array.isArray(list)?list:[]).filter(p=>p&&typeof p.data==="string"&&/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=\s]+$/.test(p.data));
   n.id=String(n.id||"s"+Date.now()+out.length);if(ids.has(n.id)){n.id=n.id+"-p"+Date.now().toString(36)+out.length;n.station=(n.station||"")+" (pulihan)";copies++}ids.add(n.id);out.push(n)}
  return{sessions:out,copies}}
 /*backup:end*/
-async function restoreFile(file){try{const r=parseBackup(await file.text(),S.sessions.map(x=>x.id));if(!r.sessions.length){toast("Berkas tidak berisi audit.");return}S.sessions.push(...r.sessions);try{migratePhotoReviewState()}catch(e){}save();render(true);toast(r.sessions.length+" audit dipulihkan"+(r.copies?" ("+r.copies+" sebagai salinan karena sudah ada)":""))}catch(e){toast("Berkas cadangan tidak valid.")}}
+async function restoreFile(file){try{
+ if(file.size>250*1024*1024)throw new Error('Cadangan terlalu besar. Pulihkan satu audit setiap kali.');
+ const r=parseBackup(await file.text(),S.sessions.map(x=>x.id));if(!r.sessions.length)throw new Error('Berkas tidak berisi audit.');
+ if(PROFILE&&r.sessions.some(x=>!belongsToUser(x)))throw new Error('Cadangan memuat SPBU lain. Hubungi admin untuk memulihkannya.');
+ for(const restored of r.sessions){
+  if(PROFILE){restored.id=newAuditID();delete restored._cloud;delete restored._summary;delete restored._remoteOnly;for(const photos of Object.values(restored.evidence||{}))for(const photo of photos){delete photo.cloudHash;delete photo.remoteUrl}}
+  S.sessions.push(restored);
+ }
+ try{migratePhotoReviewState()}catch{}
+ for(const restored of r.sessions)markAuditChanged(restored);
+ await persistState();render(true);updateCloudStatus();scheduleCloud(0);toast(r.sessions.length+' audit dipulihkan dan masuk antrean sinkron.');
+}catch(e){toast(e.message||'Berkas cadangan tidak valid.')}}
+
 document.addEventListener("change",e=>{const t=e.target;if(t&&t.matches&&t.matches("[data-restore]")&&t.files&&t.files[0]){restoreFile(t.files[0]);t.value=""}});
 function dl(name,data){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function printDoc(s,photos){const c=score(s);let h=`<h1>Laporan pemeriksaan internal</h1><p>${esc(s.station)} • No. SPBU ${esc(s.number)} • ${esc(s.city||"")} • ${fdate(s.date)}</p><p>Poin subelemen selesai: ${fmt(c.points)} dari ${fmt(c.scored)} • Butir dinilai ${done(s)} / ${seed.length} • Nilai di bawah A: ${issues(s).length}</p><p>Simulasi internal, bukan nilai resmi auditor. Status AI hanya peninjauan bukti visual; nilai tetap ditentukan pemeriksa.</p>`;
- elements.forEach(el=>{h+=`<h2>${esc(el)}</h2>`;const ph=evidence(s,el),ai=s.aiEvidence?.[el];if(photos){h+=`<div class="pi"><b>Bukti foto elemen</b>${ph.length?`<div class="pp">${ph.map(q=>q.type&&q.type.startsWith("image/")?`<img src="${q.data}" alt="Bukti">`:`<i>${esc(q.name||"dokumen")} (PDF)</i>`).join("")}</div>`:`<p>Tidak ada foto bukti.</p>`}${ai?`<p>Pemeriksaan AI: ${esc(ai.summary||"")}</p>`:"<p>AI belum memeriksa bukti.</p>"}</div>`}let last="";seed.filter(x=>x.element===el).forEach(x=>{if(x.subElement!==last){h+=`<h3>${esc(x.subElement)}</h3>`;last=x.subElement}const d=get(s,x.id),a=aiFor(s,x);h+=`<div class="pi"><b>${esc(x.code)}</b><span class="pr">${d.rating||"-"}</span>${esc(x.text)}${a?`<div class="pc">Pemeriksaan bukti AI: ${esc(aiStatusLabel(a.status))} — ${esc(a.reason||"")}</div>`:""}${d.comment?`<div class="pc">Catatan: ${esc(d.comment)}</div>`:""}</div>`})});
+ elements.forEach(el=>{h+=`<h2>${esc(el)}</h2>`;const ph=evidence(s,el),ai=s.aiEvidence?.[el];if(photos){h+=`<div class="pi"><b>Bukti foto elemen</b>${ph.length?`<div class="pp">${ph.map(q=>q.type&&q.type.startsWith("image/")?`<img src="${esc(photoSource(q))}" alt="Bukti">`:`<i>${esc(q.name||"dokumen")} (PDF)</i>`).join("")}</div>`:`<p>Tidak ada foto bukti.</p>`}${ai?`<p>Pemeriksaan AI: ${esc(ai.summary||"")}</p>`:"<p>AI belum memeriksa bukti.</p>"}</div>`}let last="";seed.filter(x=>x.element===el).forEach(x=>{if(x.subElement!==last){h+=`<h3>${esc(x.subElement)}</h3>`;last=x.subElement}const d=get(s,x.id),a=aiFor(s,x);h+=`<div class="pi"><b>${esc(x.code)}</b><span class="pr">${d.rating||"-"}</span>${esc(x.text)}${a?`<div class="pc">Pemeriksaan bukti AI: ${esc(aiStatusLabel(a.status))} — ${esc(a.reason||"")}</div>`:""}${d.comment?`<div class="pc">Catatan: ${esc(d.comment)}</div>`:""}</div>`})});
  document.getElementById("printdoc").innerHTML=h;document.body.classList.add("pf");try{window.print()}catch(e){toast("Cetak tidak tersedia di sini. Buka halaman ini langsung di browser.");document.body.classList.remove("pf")}}
 window.addEventListener("afterprint",()=>document.body.classList.remove("pf"));
-document.addEventListener("click",e=>{
+document.addEventListener("click",async e=>{
  const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,s=sess();
- if(a==="open-camera"){openCamera(Number(b.dataset.el))}
+ if(a==="cloud-retry"){if(cloud.paused){location.href='/auth/login';return}cloud.error='';await syncCloud();}
+ else if(a==="cloud-refresh"){await refreshCatalog();}
+ else if(a==="cloud-import"){await importLegacyAudits();}
+ else if(a==="cloud-copy"){await copyConflictingAudit(S.sessions.find(x=>x.id===b.dataset.sid));}
+ else if(a==="cloud-pull"){await pullServerVersion(S.sessions.find(x=>x.id===b.dataset.sid));}
+ else if(a==="cloud-history"){await showCloudHistory(s);}
+ else if(a==="cloud-trash"){await showCloudTrash();}
+ else if(a==="cloud-restore"){await restoreCloudVersion(b.dataset);}
+ else if(a==="cloud-close"){cloud.dialog=null;render(true);}
+ else if(a==="edit-audit"){ui.editSid=s.id;ui.sheet=true;render(true);}
+ else if(a==="open-camera"){openCamera(Number(b.dataset.el))}
  else if(a==="cancel-camera"){closeCamera();render(true)}
  else if(a==="camera-shot"){takeCameraPhoto()}
- else if(a==="open"){ui.sid=b.dataset.sid;ui.view="sess";ui.tab="cek";render()}
- else if(a==="new"){ui.sheet=true;render(true)}
- else if(a==="cancel"){ui.sheet=false;render(true)}
+ else if(a==="open"){await openCloudAudit(b.dataset.sid)}
+ else if(a==="new"){if(PROFILE?.role!=="admin"&&PROFILE&&!stationID(PROFILE.stationNumber)){toast("Hubungi admin untuk penugasan SPBU.");return}ui.editSid=null;ui.sheet=true;render(true)}
+ else if(a==="cancel"){ui.sheet=false;ui.editSid=null;render(true)}
  else if(a==="back-j"){ui.view="jadwal";ui.sid=null;render()}
  else if(a==="back-s"){ui.view="sess";ui.tab="cek";render(true)}
  else if(a==="tab"){ui.tab=b.dataset.tab;render()}
@@ -238,11 +536,19 @@ else if(a==="preview-evidence"){const ei=Number(b.dataset.el),el=elements[ei],p=
  else if(a==="rm-evidence"){if(!confirm("Hapus foto bukti ini?"))return;const el=elements[Number(b.dataset.el)],photos=evidence(s,el),i=b.dataset.id?photos.findIndex(p=>p.id===b.dataset.id):Number(b.dataset.i);if(i>=0){removeEvidencePhoto(s,el,i);save();pumpPhotoReviews()}}
  else if(a==="back-evidence"){ui.view="sess";ui.tab="cek";ui.open[elements.indexOf(seed[ui.idx].element)]=true;render(true)}
  else if(a==="fixed"){setItem(s,b.dataset.id,d=>{d.actionDone=!d.actionDone});render(true)}
- else if(a==="backup"){dl("cadangan-"+(s.number||"audit")+".json",makeBackup([s]));toast("Cadangan diunduh. Simpan di tempat aman.")}else if(a==="backup-all"){dl("cadangan-semua-audit.json",makeBackup(S.sessions));toast("Cadangan diunduh. Simpan di tempat aman.")}else if(a==="export"){dl("siap-audit-"+s.number+".json",JSON.stringify({namaSPBU:s.station,nomorSPBU:s.number,kota:s.city,tanggal:s.date,buktiPerElemen:s.evidence,hasilPemeriksaanAI:s.aiEvidence,checklist:seed.map(x=>({kode:x.code,butir:x.text,subElemen:x.subElement,elemen:x.element,bobot:x.weight,hasilAI:aiFor(s,x),...get(s,x.id)}))},null,2))}
- else if(a==="print-plain"||a==="print-full"){printDoc(s,a==="print-full")}
- else if(a==="del"){if(confirm("Hapus audit ini beserta semua nilai dan fotonya dari perangkat?")){S.sessions=S.sessions.filter(z=>z.id!==s.id);save();ui.view="jadwal";ui.sid=null;render()}}
+ else if(a==="backup"){await downloadBackup([s],"cadangan-"+(s.number||"audit")+".json")}else if(a==="backup-all"){if(PROFILE)await refreshCatalog();await downloadBackup(S.sessions.filter(x=>!x._cloud?.deleteRequested),"cadangan-semua-audit.json")}else if(a==="export"){try{await hydratePhotos(s)}catch(e){toast(e.message);return}dl("siap-audit-"+s.number+".json",JSON.stringify({namaSPBU:s.station,nomorSPBU:s.number,kota:s.city,tanggal:s.date,buktiPerElemen:s.evidence,hasilPemeriksaanAI:s.aiEvidence,checklist:seed.map(x=>({kode:x.code,butir:x.text,subElemen:x.subElement,elemen:x.element,bobot:x.weight,hasilAI:aiFor(s,x),...get(s,x.id)}))},null,2))}
+ else if(a==="print-plain"||a==="print-full"){if(a==="print-full")try{await hydratePhotos(s)}catch(e){toast(e.message);return}printDoc(s,a==="print-full")}
+ else if(a==="del"){deleteCloudAudit(s)}
 });
-document.addEventListener("submit",e=>{const f=e.target.closest("[data-form]");if(!f)return;e.preventDefault();const v=Object.fromEntries(new FormData(f));const s={id:"s"+Date.now(),station:v.station.trim(),number:v.number.trim(),city:v.city.trim(),date:v.date,items:{},evidence:{},aiEvidence:{}};S.sessions.push(s);save();ui.sheet=false;ui.sid=s.id;ui.view="sess";ui.tab="cek";render()});
+document.addEventListener("submit",e=>{const f=e.target.closest("[data-form]");if(!f)return;e.preventDefault();const v=Object.fromEntries(new FormData(f));
+ if(PROFILE&&!stationID(v.number)){toast('Nomor SPBU harus 7 angka, misalnya 64.701.10.');return}
+ if(PROFILE?.role!=='admin'&&PROFILE&&stationID(v.number)!==stationID(PROFILE.stationNumber)){toast('Nomor SPBU tidak sesuai penugasan akun.');return}
+ let audit=ui.editSid&&S.sessions.find(x=>x.id===ui.editSid);
+ if(audit){Object.assign(audit,{station:v.station.trim(),number:v.number.trim(),city:v.city.trim(),date:v.date});delete cloudInfo(audit).error}
+ else{audit={id:newAuditID(),station:v.station.trim(),number:v.number.trim(),city:v.city.trim(),date:v.date,items:{},evidence:{},aiEvidence:{}};S.sessions.push(audit)}
+ ui.sheet=false;ui.editSid=null;ui.sid=audit.id;ui.view='sess';ui.tab='cek';save(audit);render();
+});
+
 document.addEventListener("change",async e=>{
  const s=sess(),t=e.target;if(!s)return;
  if(t.matches("[data-comment]"))setItem(s,seed[ui.idx].id,d=>{d.comment=t.value});
@@ -254,7 +560,7 @@ document.addEventListener("input",e=>{const t=e.target;if(!t.matches("[data-q]")
  document.querySelectorAll(".ecard").forEach(c=>{const bd=c.querySelector(".ebody");let any=false;c.querySelectorAll(".it").forEach(n=>{const m=!q||n.dataset.hay.includes(q);n.hidden=!m;if(m)any=true});bd.hidden=q?!any:!c.dataset.open;c.hidden=!!q&&!any})});
 function moveItem(dir){const next=Math.max(0,Math.min(seed.length-1,ui.idx+dir));if(next===ui.idx)return;ui.idx=next;render()}
 let swipeStart=null;$app.addEventListener("touchstart",e=>{if(ui.view!=="item")return;const t=e.changedTouches[0];swipeStart={x:t.clientX,y:t.clientY}},{passive:true});$app.addEventListener("touchend",e=>{if(!swipeStart||ui.view!=="item")return;const t=e.changedTouches[0],dx=t.clientX-swipeStart.x,dy=t.clientY-swipeStart.y;swipeStart=null;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25)moveItem(dx<0?1:-1)},{passive:true});
-window.addEventListener("online",()=>pumpPhotoReviews());window.addEventListener("offline",()=>render(true));
+window.addEventListener("online",()=>{pumpPhotoReviews();cloud.paused=false;refreshCatalog();scheduleCloud(0);});window.addEventListener("offline",()=>{render(true);updateCloudStatus()});
 load().then(()=>{render();pumpPhotoReviews()});
 })();
 </script>

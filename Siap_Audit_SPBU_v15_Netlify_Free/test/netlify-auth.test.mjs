@@ -45,7 +45,7 @@ async function login(h, username = ENV.ADMIN_USERNAME, password = ENV.ADMIN_PASS
   return { response, cookie: response.headers.get("set-cookie")?.split(";")[0] };
 }
 async function addUser(h, cookie, username = "petugas1", password = "test-only-staff-password", name = "Petugas satu") {
-  return h.app(request("/auth/users", { cookie, method: "POST", data: { username, password, name, role: "admin" } }), CONTEXT);
+  return h.app(request("/auth/users", { cookie, method: "POST", data: { username, password, name, stationNumber: "64.701.10", role: "admin" } }), CONTEXT);
 }
 
 test("missing or weak admin credentials fail closed and never call AI", async () => {
@@ -191,6 +191,14 @@ test("admin pages escape user names and never show password hashes", async () =>
   assert.match(body, /&lt;img/);
   assert.ok(!body.includes('<img src=x'));
   assert.ok(!body.includes("scrypt$"));
+  const maliciousName = '</script><script>alert("profile")</script>&';
+  await addUser(h, owner.cookie, "petugas2", "test-only-staff-password", maliciousName);
+  const staff = await login(h, "petugas2", "test-only-staff-password");
+  const staffBody = await (await h.app(request("/", { cookie: staff.cookie, accept: "text/html" }), CONTEXT)).text();
+  const bootstrap = staffBody.match(/<script>(window\.SPBU_USER=.*?;)<\/script>/s)?.[1];
+  assert.ok(bootstrap); assert.ok(!bootstrap.includes("</script>"));
+  const context = { window: {} }; new vm.Script(bootstrap).runInNewContext(context);
+  assert.equal(context.window.SPBU_USER.name, maliciousName);
 });
 
 test("authenticated photo reaches Gemini and all 56 criteria return through the Netlify adapter", async () => {

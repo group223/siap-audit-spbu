@@ -1,108 +1,97 @@
-# Langkah pemasangan — Siap Audit SPBU v15 Netlify Free
+# Panduan pembaruan v16 — Siap Audit SPBU
 
-Kerjakan melalui laptop/PC. Jalur ini menggunakan akun GitHub personal dan Netlify Free. Anda tidak perlu memasang PHP, Laravel, VS Code, atau Cloudflare Zero Trust.
+Untuk aplikasi yang sudah berada di https://siap-audit-spbu.netlify.app/. Gunakan proyek Netlify dan repository GitHub yang sama agar akun lama serta penyimpanan server tetap tersedia.
 
-## 1. Ekstrak paket
+## 1. Simpan cadangan sebelum memperbarui
 
-1. Unduh dan ekstrak Siap_Audit_SPBU_v15_Netlify_Free.zip.
-2. Buka folder hasil ekstrak.
-3. Pastikan berkas **package.json** dan **netlify.toml** terlihat, beserta folder frontend, netlify, public, scripts, server, test, dan worker.
+1. Dari HP/browser yang menyimpan audit lama, masuk aplikasi.
+2. Pada Jadwal, tekan **Cadangkan semua audit** dan simpan JSON hasil unduhan.
+3. Jangan hapus data browser. Lakukan ini pada setiap perangkat yang mempunyai data audit berbeda.
 
-## 2. Buat repository GitHub
+## 2. Ekstrak dan unggah pembaruan ke GitHub
 
-1. Buka https://github.com/ dan masuk/daftar memakai akun pribadi Anda.
-2. Pilih **New repository**.
-3. Beri nama **siap-audit-spbu**.
-4. Pilih **Private** dan aktifkan pembuatan README agar menu unggah mudah terlihat.
-5. Klik **Create repository**.
-6. Buka **Add file → Upload files**.
-7. Dari komputer, buka folder hasil ekstrak, pilih **seluruh isi di dalamnya**, lalu seret ke halaman unggah GitHub. Pertahankan folder beserta isinya.
-8. Klik **Commit changes**. Jika GitHub menampilkan Propose changes, selesaikan pengajuan dan penggabungannya ke branch main.
-9. Periksa halaman repository: **package.json** dan **netlify.toml** harus terlihat langsung di halaman utama repository. Jika berada di dalam satu folder pembungkus tambahan, pindahkan isinya ke root repository sebelum melanjutkan.
+1. Unduh **Siap_Audit_SPBU_v16_Penyimpanan_Pusat.zip** lalu ekstrak.
+2. Di dalam hasil ekstrak ada folder **Siap_Audit_SPBU_v15_Netlify_Free**. Nama folder tetap sama agar cocok dengan hosting yang sudah terpasang; program di dalamnya sudah v16.
+3. Buka https://github.com/group223/siap-audit-spbu pada branch **main**.
+4. Pastikan berada di halaman utama repository, lalu pilih **Add file → Upload files**.
+5. Seret **folder Siap_Audit_SPBU_v15_Netlify_Free beserta seluruh isinya** dari hasil ekstrak ke halaman unggah. Jangan unggah berkas ZIP. Jangan masuk ke folder repository lalu menyeret folder yang sama, karena akan membuat folder bertingkat.
+6. Klik **Commit changes**. Jika muncul konfirmasi mengganti berkas, gunakan berkas baru. Selesaikan commit ke main.
+7. Buka folder tersebut di GitHub: package.json harus menunjukkan versi **16.0.0**, dan server/ harus berisi **audits.mjs** serta **audit-schema.json**.
 
-API key dan kata sandi pengelola dimasukkan nanti pada Netlify, tidak diunggah ke repository.
+Paket tidak berisi password atau API key operasional. Tidak perlu mengubah tiga variabel Netlify yang sudah berhasil dipakai.
 
-## 3. Hubungkan ke Netlify Free
+## 3. Tunggu deployment Netlify
 
-1. Buka https://app.netlify.com/ dan masuk/daftar. Memakai **GitHub** sebagai cara masuk memudahkan tahap impor.
-2. Pilih paket **Free ($0)**.
-3. Pada dashboard, pilih **Add new project → Import an existing project**.
-4. Pilih **GitHub**. Jika diminta memberi akses repository, pilih hanya repository **siap-audit-spbu** yang digunakan.
-5. Pilih repository tersebut dan branch **main**.
-6. Isi/cek pengaturan:
+1. Buka https://app.netlify.com/ dan pilih proyek **siap-audit-spbu**.
+2. Buka **Deploys**. Commit GitHub akan memicu deployment otomatis bila auto publishing aktif.
+3. Jika belum berjalan, pilih **Trigger deploy → Deploy project**.
+4. Tunggu deployment terbaru berstatus **Published**, lalu buka alamat aplikasi.
+
+Jika build gagal atau halaman tidak ditemukan, periksa **Project configuration → Developer settings → Build settings**:
 
 | Pengaturan | Isi |
 |---|---|
-| Base directory | Kosong, jika package.json dan netlify.toml berada di root |
+| Base directory | Siap_Audit_SPBU_v15_Netlify_Free |
 | Build command | npm run build |
 | Publish directory | public |
-| Functions directory | netlify/functions (sudah di netlify.toml) |
+| Functions directory | netlify/functions |
 
-Jika Netlify sudah membaca konfigurasi otomatis, gunakan nilai yang sama.
+Publish dan Functions dihitung relatif terhadap Base directory. Pada tampilan ringkasan Netlify, jalur dapat terlihat lengkap dengan nama Base directory. Pastikan deployment menyertakan Function bernama **app**. Deploy statis saja tidak memasang login dan penyimpanan pusat.
 
-## 4. Masukkan tiga environment variables
+## 4. Pindahkan audit lama ke server
 
-Pada halaman konfigurasi sebelum Deploy, buka bagian **Environment variables / Add environment variables**. Tambahkan:
+1. Pada **browser dan alamat aplikasi yang sama** dengan data lama, muat ulang aplikasi lalu masuk sebagai admin.
+2. Di atas aplikasi muncul informasi jumlah audit versi lama beserta tombol **Pindahkan ke server**.
+3. Tekan tombol tersebut dan setujui pemindahan. Audit masuk antrean pengiriman; data sumber browser tetap dipertahankan.
+4. Biarkan halaman terbuka dan internet tersambung sampai status **Audit dan foto tersimpan di server** muncul.
+5. Jika nomor SPBU belum valid, buka audit → **Capaian → Ubah data audit**, lengkapi nomor tujuh angka (contoh 64.701.10), lalu sinkronkan.
+6. Dari HP/laptop kedua, buka aplikasi dan masuk dengan akun yang berhak. Tekan **Perbarui daftar** dan periksa satu audit beserta fotonya.
 
-| Key | Value |
-|---|---|
-| GEMINI_API_KEY | API key Gemini Anda |
-| ADMIN_USERNAME | Nama pengguna yang Anda pilih, misalnya pengelola |
-| ADMIN_PASSWORD | Kata sandi buatan Anda sendiri, minimal 12 dan maksimal 128 karakter |
+Jika data berasal dari alamat aplikasi lain atau tombol pemindahan tidak muncul, gunakan **Pulihkan cadangan**, pilih JSON yang sudah disimpan, lalu tunggu sinkronisasi. Pemulihan membuat audit baru dan tidak menimpa audit server. Mengimpor data yang sama berulang kali akan menghasilkan salinan tambahan. Setelah seluruh audit dan fotonya diperiksa dari perangkat kedua serta cadangan terpisah disimpan, salinan browser lama boleh dibersihkan melalui pengaturan data situs browser. Login kembali untuk mengambil audit dari server. Jangan lakukan ini ketika masih ada perubahan menunggu sinkronisasi.
 
-ADMIN_USERNAME menggunakan huruf kecil, angka, titik, garis bawah, atau tanda hubung; panjang 3–40 karakter.
+Untuk data di HP petugas lama, unduh cadangan lalu minta admin memulihkannya, atau gunakan pemulihan pada akun petugas setelah penugasan SPBU disimpan. Petugas hanya boleh memulihkan audit SPBU yang ditugaskan.
 
-Jika pilihan scope tersedia, pastikan nilai tersedia untuk **Functions**. Opsi **All scopes** juga mencakup Functions. Jangan memakai nilai yang hanya tersedia untuk Build.
+## 5. Atur petugas untuk setiap SPBU
 
-Jika variabel belum bisa diisi sebelum deploy pertama:
+1. Masuk admin → **Akun petugas**.
+2. Pada akun petugas yang sudah ada, isi **No. SPBU yang boleh diakses**, lalu klik **Simpan SPBU**.
+3. Untuk akun baru, isi nama, nama pengguna, nomor SPBU, dan password **minimal 8 karakter**, lalu **Buat akun petugas**.
+4. Petugas masuk kembali setelah penugasannya diubah.
 
-1. Selesaikan pembuatan proyek dan build awal.
-2. Buka **Project configuration → Environment variables**, tambahkan ketiga nilai di atas, lalu simpan.
-3. Buka **Deploys → Trigger deploy → Deploy project**.
+Admin dapat membuka semua SPBU. Satu akun petugas ditugaskan ke satu SPBU; beberapa petugas dapat ditugaskan ke SPBU yang sama. Petugas tidak memerlukan akun Netlify atau GitHub. Mengganti password, penugasan, atau menonaktifkan akun mengakhiri sesi lama petugas tersebut.
 
-Halaman “Pengelola perlu melengkapi pengaturan akun” sebelum ketiga nilai terpasang merupakan penanda pengaturan akun belum selesai. Akses aplikasi dan AI tetap dibatasi.
+## 6. Jika ingin password admin tepat 8 karakter
 
-## 5. Terbitkan dan uji
+1. Lakukan ini **sesudah v16 Published dan aplikasi bisa dibuka**.
+2. Di Netlify, buka **Project configuration → Environment variables**.
+3. Pada **ADMIN_PASSWORD**, pilih **Options → Edit**.
+4. Isi password baru delapan karakter pada **Value Production**, bukan pada kolom Key. Delapan angka diterima; simpan sendiri dan jangan kirim lewat chat.
+5. Pastikan cakupan mencakup **Functions**, lalu **Save variable**. Pertahankan pengaturan scope yang sudah berfungsi; tidak perlu upgrade paket.
+6. Buka **Deploys → Trigger deploy → Deploy project**, tunggu Published, lalu masuk dengan password baru.
 
-1. Klik **Deploy / Deploy project**, lalu tunggu build selesai.
-2. Pada rincian deploy, pastikan ada **Function bernama app**. Paket ini memakai satu Function untuk login, halaman aplikasi, dan backend AI.
-3. Jika proyek baru ditandai **Private**, selesaikan tindakan **Publish** di Netlify agar petugas bisa mengakses alamat aplikasinya. Login aplikasi tetap berlaku setelah proyek dipublikasikan.
-4. Buka alamat **.netlify.app** yang diberikan Netlify.
-5. Masuk dengan ADMIN_USERNAME dan ADMIN_PASSWORD yang Anda tentukan.
-6. Buat satu sesi pemeriksaan SPBU. Buka dari HP, izinkan kamera, ambil satu foto, dan tunggu hasil AI.
-7. Coba buka kamera lagi saat AI bekerja. Foto berikutnya harus tetap bisa diambil dan masuk antrean.
-8. Coba alamat aplikasi di jendela privat/incognito: halaman masuk harus muncul, dan API pemeriksaan tidak dapat dipakai tanpa akun.
+GEMINI_API_KEY dan ADMIN_USERNAME tidak perlu diganti. Password petugas diganti melalui halaman Akun petugas di aplikasi, bukan variabel hosting. Tidak ada akun baru yang dibuat otomatis oleh ZIP ini.
 
-## 6. Tambah akun petugas
+## 7. Pemakaian sehari-hari
 
-1. Masuk memakai akun pengelola.
-2. Di bagian atas aplikasi, pilih **Akun petugas**.
-3. Isi nama, nama pengguna, dan kata sandi awal petugas (minimal 12 karakter).
-4. Klik **Buat akun petugas**.
-5. Petugas membuka alamat aplikasi yang sama dan masuk dengan akunnya.
+- Buat audit terpisah untuk setiap SPBU dan tanggal pemeriksaan.
+- Foto satu per satu dari kamera. AI tetap memeriksa otomatis; Anda dapat memotret lagi atau berpindah halaman aplikasi saat antrean bekerja.
+- Status mengirim/offline berarti masih ada perubahan di perangkat asal. Jangan membersihkan data browser sampai sinkron selesai.
+- Foto yang sudah tersimpan di server akan ditampilkan saat dibutuhkan, sehingga tidak semuanya harus menetap di browser HP.
+- Pada perangkat lain, **Perbarui daftar**, lalu buka audit. Untuk menghindari konflik, usahakan satu petugas mengubah audit yang sama pada satu waktu.
+- Jika ada konflik, pilih **Simpan sebagai salinan** untuk mempertahankan perubahan HP. Gunakan **Muat versi server** setelah salinan aman tersinkron bila versi server ingin dipakai.
+- **Riwayat server** menyediakan lima versi sebelumnya. Admin dapat membuka **Audit dihapus** untuk memulihkan audit yang dihapus.
+- Tetap unduh **Cadangkan audit (dengan foto)** atau **Cadangkan semua audit** secara berkala. Riwayat server berada pada penyedia yang sama dan bukan pengganti cadangan terpisah.
 
-Petugas tidak perlu menjadi anggota tim hosting Netlify dan tidak perlu membuat akun GitHub. Akun petugas disimpan otomatis oleh aplikasi pada Netlify Blobs. Dari halaman yang sama pengelola dapat menonaktifkan akun atau mengganti kata sandinya.
+## Paket gratis dan pemeriksaan setelah pemasangan
 
-## 7. Pindahkan data lama
+Tidak perlu menambah kartu atau layanan database lain untuk pembaruan ini. Netlify Blobs terhubung melalui Function di proyek yang sama. Pemakaian tetap mengikuti kredit/kuota Netlify Free; pantau **Usage & billing**. Kuota Gemini dihitung terpisah.
 
-1. Buka aplikasi lama: https://siap-audit-spbu.inayahgroup3.chatgpt.site
-2. Pada halaman Jadwal, tekan **Cadangkan semua audit**.
-3. Simpan JSON hasil unduhan.
-4. Buka aplikasi Netlify yang baru, masuk akun, lalu pilih **Pulihkan cadangan**.
-5. Pilih JSON tersebut dan periksa kembali SPBU, tanggal, foto, serta nilainya.
+Setelah Published, periksa:
 
-Riwayat pada alamat lama tidak otomatis berpindah. Simpan cadangan lama sampai pemulihan selesai diperiksa.
+1. Login admin, buka satu audit, tambahkan satu foto, dan tunggu sinkron selesai.
+2. Buka dari HP kedua; audit dan foto yang sama harus terlihat.
+3. Login petugas; hanya SPBU yang ditugaskan harus terlihat.
+4. Ubah catatan saat koneksi putus pada halaman yang sudah terbuka; sambungkan kembali dan tunggu tersimpan.
+5. Cadangkan satu audit, lalu periksa berkas unduhannya tersedia.
 
-## 8. Pasang di HP
-
-- Android / Chrome: buka alamat aplikasi, masuk akun, lalu **menu ⋮ → Instal aplikasi / Tambahkan ke layar utama**, jika tersedia.
-- iPhone / Safari: buka alamat aplikasi, lalu **Bagikan → Tambahkan ke Layar Utama**.
-
-## Setelah selesai pemeriksaan
-
-- Gunakan sesi terpisah untuk setiap SPBU dan tanggal pemeriksaan.
-- Buat cadangan setelah pemeriksaan selesai. Foto dan data audit masih tersimpan pada browser/perangkat masing-masing, bukan tersinkron antar-HP.
-- Halaman yang sudah terbuka dapat menyimpan foto ketika internet terputus; pemeriksaan AI menunggu koneksi. Untuk membuka ulang halaman atau masuk akun diperlukan internet.
-- Tetap gunakan paket Free dan pantau Usage & billing. Kuota hosting Netlify serta API Gemini dihitung terpisah.
-
-Jika ada kendala, catat tahap dan pesan errornya. Tangkapan layar pengaturan cukup menampilkan nama variabel dan statusnya; sembunyikan API key serta kata sandi.
+Bila ada kegagalan, catat pesan dan tahapnya. Tangkapan layar pengaturan cukup menampilkan nama variabel serta status; sembunyikan nilai password dan API key.
