@@ -105,6 +105,7 @@ try{localStorage.removeItem("siap-audit-akses")}catch{}
 const maxOf=s=>{const m=String(s).match(/\((\d+(?:\.\d+)?)\)\s*$/);return m?Number(m[1]):0};
 const elNo=s=>(String(s).match(/Elemen\s+(\d+)/i)||[])[1]||"";
 let S={sessions:[]},ui={view:"jadwal",tab:"cek",sid:null,idx:0,open:{},sheet:false,activeReviews:[],analysisQueue:[],preview:null};
+let sessionLeaving=false;
 const $app=document.getElementById("app");
 /* ---------- penyimpanan ---------- */
 const dbOpen=()=>new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore("data");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
@@ -196,6 +197,7 @@ function vTemuan(s){
  const is=issues(s);
  return head(s,"Tindak lanjut","No. SPBU "+esc(s.number)+" • "+is.length+" temuan","back-j",false)+`<div class="pad">${is.length?is.map(x=>{const d=get(s,x.id);return `<div class="card"><b style="font-size:13.5px">${esc(x.code)} <span class="chip ${cls(d.rating)}">Nilai ${d.rating}</span></b><p style="margin:7px 0;font-size:13px">${esc(x.text)}</p>${d.comment?`<p class="hint">Catatan: ${esc(d.comment)}</p>`:""}<div class="act"><input data-f="plan" data-id="${esc(x.id)}" placeholder="Rencana perbaikan" value="${esc(d.plan||"")}"><input data-f="owner" data-id="${esc(x.id)}" placeholder="Penanggung jawab" value="${esc(d.owner||"")}"><input type="date" data-f="due" data-id="${esc(x.id)}" aria-label="Target selesai" value="${esc(d.due||"")}"><button class="btn ${d.actionDone?"p":""}" data-act="fixed" data-id="${esc(x.id)}">${d.actionDone?"✓ Sudah diperbaiki":"Tandai sudah diperbaiki"}</button></div></div>`}).join(""):`<div class="empty">Belum ada temuan.<br>Butir bernilai B sampai F akan muncul di sini.</div>`}</div>`+nav()}
 function render(keep){
+ recordNavigation();
  const s=sess();let h;
  if(ui.view==="jadwal"||!s)h=vJadwal();else if(ui.view==="item")h=vItem(s);else h=ui.tab==="cek"?vCek(s):ui.tab==="capaian"?vCapaian(s):vTemuan(s);
  $app.innerHTML=aiProgressHtml()+h+(ui.sheet?sheet():"")+(ui.camera?cameraSheet():"")+(ui.preview?previewSheet():"")+cloudSheetHtml();if(ui.camera?.stream){const v=document.getElementById("camera-video");if(v){v.srcObject=ui.camera.stream;v.play().catch(()=>{})}}if(!keep)window.scrollTo(0,0);
@@ -208,7 +210,7 @@ function pendingPhotoJobs(){const jobs=[];for(const s of S.sessions.filter(x=>!x
 function jobPhoto(job){const s=S.sessions.find(x=>x.id===job.sid),el=elements[job.ei],photos=s&&evidence(s,el),index=photos?.findIndex(p=>p.id===job.photoId)??-1;return{s,el,photos,index,photo:index>=0?photos[index]:null}}
 function aiProgressHtml(){const count=ui.analysisQueue.length;if(!ui.activeReviews.length&&!count)return "";const next=ui.analysisQueue.length?Math.max(Number(S.aiRetryAfter)||0,...ui.analysisQueue.map(x=>x.nextAttemptAt||0).sort((a,b)=>a-b).slice(0,1)):0;const msg=!navigator.onLine?`${count+ui.activeReviews.length} foto tersimpan. Pemeriksaan dilanjutkan saat internet tersambung.`:ui.activeReviews.length?`AI sedang memeriksa foto${count?` • ${count} foto menunggu`:""}. Anda tetap bisa memotret dan membuka halaman lain.`:`${count} foto menunggu pemeriksaan${next>Date.now()?` • dilanjutkan setelah ${new Date(next).toLocaleTimeString("id-ID")}`:""}. Foto tetap tersimpan.`;return `<div class="ai-progress" role="status">${esc(msg)}</div>`}
 function enqueuePhotoReview(sid,ei,photoIndex,manual=false){const s=S.sessions.find(x=>x.id===sid),p=s&&evidence(s,elements[ei])[photoIndex];if(!p||ui.activeReviews.some(x=>x.photoId===p.id))return;if(!p.id)p.id="p"+Date.now()+Math.random();if(p.aiReview?.status==="done"&&!manual)return;p.aiReview={status:"queued",attempts:manual?0:p.aiReview?.attempts||0,nextAttemptAt:0,message:navigator.onLine?"Menunggu giliran pemeriksaan AI.":"Menunggu koneksi internet. Foto tetap tersimpan."};save();pumpPhotoReviews()}
-function pumpPhotoReviews(){clearTimeout(queueWakeTimer);ui.analysisQueue=pendingPhotoJobs();if(!navigator.onLine){render(true);return}const now=Date.now(),pausedUntil=Number(S.aiRetryAfter)||0;if(!ui.activeReviews.length&&pausedUntil<=now){const ready=ui.analysisQueue.find(j=>j.nextAttemptAt<=now);if(ready)runPhotoReview(ready)}ui.analysisQueue=pendingPhotoJobs();if(!ui.activeReviews.length&&ui.analysisQueue.length){const next=Math.max(pausedUntil,Math.min(...ui.analysisQueue.map(j=>j.nextAttemptAt||0)));queueWakeTimer=setTimeout(pumpPhotoReviews,Math.max(100,next-Date.now()))}render(true)}
+function pumpPhotoReviews(){if(sessionLeaving)return;clearTimeout(queueWakeTimer);ui.analysisQueue=pendingPhotoJobs();if(!navigator.onLine){render(true);return}const now=Date.now(),pausedUntil=Number(S.aiRetryAfter)||0;if(!ui.activeReviews.length&&pausedUntil<=now){const ready=ui.analysisQueue.find(j=>j.nextAttemptAt<=now);if(ready)runPhotoReview(ready)}ui.analysisQueue=pendingPhotoJobs();if(!ui.activeReviews.length&&ui.analysisQueue.length){const next=Math.max(pausedUntil,Math.min(...ui.analysisQueue.map(j=>j.nextAttemptAt||0)));queueWakeTimer=setTimeout(pumpPhotoReviews,Math.max(100,next-Date.now()))}render(true)}
 function mergePhotoResults(previous,review,criteria){const oldReviews=(previous?.photoReviews||[]).filter(r=>!review?.photoId||r.photoId!==review.photoId);if(!oldReviews.length&&previous?.results?.length&&!previous?.photoReviews)oldReviews.push({photoIndex:0,summary:previous.summary||"",results:previous.results});if(review)oldReviews.push(review);const rank={terdukung:4,kurang_jelas:3,tidak_terlihat:2,tidak_dapat_dinilai_dari_foto:1};const results=oldReviews.length?criteria.map(x=>{const hits=oldReviews.flatMap(q=>(q.results||[]).filter(r=>r.code===x.code).map(r=>({...r,photoIndex:q.photoIndex})));if(!hits.length)return{code:x.code,status:"tidak_dapat_dinilai_dari_foto",reason:"Belum ada hasil pemeriksaan untuk butir ini.",photoNumbers:[]};const best=Math.max(...hits.map(r=>rank[r.status]||0)),chosen=hits.filter(r=>(rank[r.status]||0)===best),nums=[...new Set(chosen.map(r=>r.photoIndex).filter(n=>n>0))].sort((a,b)=>a-b);return{code:x.code,status:chosen[0].status,reason:[...new Set(chosen.map(r=>r.reason).filter(Boolean))].slice(0,2).join("; "),photoNumbers:nums}}):[];return{photoReviews:oldReviews,results}}
 function reindexPhotoReviews(ai,removedIndex){const deleted=removedIndex+1,shift=n=>n>deleted?n-1:n;ai.photoReviews=(ai.photoReviews||[]).map(r=>({...r,photoIndex:shift(r.photoIndex),results:(r.results||[]).map(x=>({...x,photoNumbers:(x.photoNumbers||[]).filter(n=>n!==deleted).map(shift)}))}));ai.results=(ai.results||[]).map(x=>({...x,photoNumbers:(x.photoNumbers||[]).filter(n=>n!==deleted).map(shift)}))}
 function removeEvidencePhoto(s,el,index){const photos=evidence(s,el),p=photos[index];if(!p)return;photos.splice(index,1);const a=s.aiEvidence?.[el];if(a){a.photoReviews=(a.photoReviews||[]).filter(r=>r.photoId?r.photoId!==p.id:r.photoIndex!==index+1);reindexPhotoReviews(a,index);Object.assign(a,mergePhotoResults(a,null,seed.filter(x=>x.element===el)));a.summary=`${a.photoReviews.filter(x=>x.photoIndex>0).length} foto diperiksa. Hasil tiap butir menggabungkan bukti foto yang masih tersimpan.`}if(ui.preview?.photoId===p.id)ui.preview=null}
@@ -218,6 +220,70 @@ async function runPhotoReview(job){const{s,el,photo}=jobPhoto(job);if(!s||!photo
 function setItem(s,id,fn){const d=get(s,id);fn(d);s.items[id]=d;save(s)}
 /*cloud:start*/
 const cloud = { busy:false, catalogBusy:false, error:"", paused:false, timer:null, delay:5000, legacy:[], dialog:null, loadingAudit:null, backupBusy:false };
+/*navigation:start*/
+const navigation={ready:false,restoring:false,last:null,ticket:0,account:PROFILE?.username||'local'};
+function navigationRoute(){
+ const s=sess(),view=s&&ui.view!=='jadwal'?ui.view:'jadwal';
+ return {view,sid:view==='jadwal'?null:s.id,tab:['cek','capaian','temuan'].includes(ui.tab)?ui.tab:'cek',idx:view==='item'?ui.idx:0,
+  sheet:!!ui.sheet,editSid:ui.sheet?ui.editSid||null:null,preview:ui.preview?{...ui.preview}:null,camera:ui.camera?ui.camera.ei:null,
+  dialog:cloud.dialog?{kind:cloud.dialog.title==='Audit yang dihapus'?'trash':'history',sid:cloud.dialog.id||ui.sid}:null};
+}
+function navigationURL(route){
+ const base=(window.location.pathname||'/')+(window.location.search||'');
+ return base+'#'+(route.view==='jadwal'?'jadwal':'audit/'+encodeURIComponent(route.sid)+'/'+(route.view==='item'?'butir/'+(route.idx+1):route.tab));
+}
+function navigationState(route){return {spbuNavigation:1,account:navigation.account,route};}
+const navigationOverlay=route=>!!(route&&(route.sheet||route.preview||route.camera!==null||route.dialog));
+function recordNavigation(){
+ if(!navigation.ready||navigation.restoring||sessionLeaving||!window.history?.pushState)return;
+ const route=navigationRoute();if(JSON.stringify(route)===JSON.stringify(navigation.last))return;
+ const previous=navigation.last,onlyItem=previous?.view==='item'&&route.view==='item'&&JSON.stringify({...previous,idx:0})===JSON.stringify({...route,idx:0});
+ try{
+  if(navigationOverlay(previous)&&!navigationOverlay(route)){
+   const base=x=>JSON.stringify({view:x.view,sid:x.sid,tab:x.tab,idx:x.idx});
+   navigation.last=route;
+   if(base(previous)===base(route)){window.history.back();return;}
+   window.history.replaceState(navigationState(route),'',navigationURL(route));return;
+  }
+  window.history[onlyItem?'replaceState':'pushState'](navigationState(route),'',navigationURL(route));navigation.last=route;
+ }catch{}
+}
+async function restoreNavigation(state){
+ const ticket=++navigation.ticket;navigation.restoring=true;
+ try{
+  const route=state?.spbuNavigation===1&&state.account===navigation.account&&state.route&&typeof state.route==='object'?state.route:{view:'jadwal'};
+  const s=S.sessions.find(x=>x.id===route.sid&&!x._cloud?.deleteRequested&&belongsToUser(x));
+  const camera=ui.camera;
+  if(camera&&(!s||camera.sid!==s.id||camera.ei!==route.camera))closeCamera();
+  ui.sheet=false;ui.editSid=null;ui.preview=null;cloud.dialog=null;
+  if(s?._remoteOnly){await openCloudAudit(s.id,false,ticket);if(ticket!==navigation.ticket)return;}
+  const available=s&&!S.sessions.find(x=>x.id===s.id)?._remoteOnly;
+  ui.sid=available?s.id:null;ui.view=available&&['sess','item'].includes(route.view)?route.view:'jadwal';
+  ui.tab=['cek','capaian','temuan'].includes(route.tab)?route.tab:'cek';
+  ui.idx=Math.max(0,Math.min(seed.length-1,Number.isInteger(route.idx)?route.idx:0));
+  if(route.sheet){ui.sheet=true;ui.editSid=s&&route.editSid===s.id?s.id:null;}
+  if(s&&route.preview&&Number.isInteger(route.preview.ei)){
+   const ei=route.preview.ei,p=evidence(s,elements[ei]).find(x=>x.id===route.preview.photoId);
+   if(p)ui.preview={sid:s.id,ei,photoId:p.id,photoIndex:evidence(s,elements[ei]).indexOf(p)};
+  }
+  render(true);
+  if(s&&Number.isInteger(route.camera)&&route.camera>=0&&route.camera<elements.length&&!ui.camera)await openCamera(route.camera);
+  if(ticket!==navigation.ticket)return;
+  if(route.dialog?.kind==='trash'&&PROFILE?.role==='admin')await showCloudTrash();
+  else if(s&&route.dialog?.kind==='history')await showCloudHistory(s);
+  if(ticket!==navigation.ticket)return;
+  const current=navigationRoute();window.history.replaceState(navigationState(current),'',navigationURL(current));navigation.last=current;
+ }finally{if(ticket===navigation.ticket)navigation.restoring=false;}
+}
+async function startNavigation(){
+ if(!window.history?.replaceState)return;
+ await restoreNavigation(window.history.state);navigation.ready=true;
+}
+window.addEventListener('popstate',event=>{
+ if(!navigation.ready||sessionLeaving)return;
+ persistState();restoreNavigation(event.state).catch(error=>{toast(error.message||'Halaman belum dapat dibuka.');});
+});
+/*navigation:end*/
 const stationID = value => { const n=String(value||"").replace(/[^0-9]/g,""); return /^\d{7}$/.test(n)?n:""; };
 const newAuditID = () => "s"+Date.now()+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const photoSource = p => p.data || p.remoteUrl || "";
@@ -385,7 +451,7 @@ async function startCloud(){
  }
  await refreshCatalog();scheduleCloud(200);updateCloudStatus();
 }
-async function openCloudAudit(sid,force=false){
+async function openCloudAudit(sid,force=false,navigationTicket=null){
  const s=S.sessions.find(x=>x.id===sid);if(!s||cloud.loadingAudit)return;
  if(!PROFILE){ui.sid=sid;ui.view='sess';ui.tab='cek';render();return}
  if(!force&&!s._remoteOnly&&(!s._cloud?.remoteRevision||s._cloud.remoteRevision===s._cloud.revision||s._cloud.dirty)){
@@ -393,7 +459,7 @@ async function openCloudAudit(sid,force=false){
  }
  cloud.loadingAudit=sid;cloud.error='';updateCloudStatus();
  try{
-  const response=await(await cloudFetch(cloudPath(s))).json(),oldPhotos=new Map(Object.values(s.evidence||{}).flat().map(p=>[p.id,p]));
+  const response=await(await cloudFetch(cloudPath(s))).json();if(navigationTicket!==null&&navigation.ticket!==navigationTicket)return;const oldPhotos=new Map(Object.values(s.evidence||{}).flat().map(p=>[p.id,p]));
   for(const photos of Object.values(response.audit.evidence||{}))for(const p of photos){const old=oldPhotos.get(p.id);if(old?.data&&old.cloudHash===p.cloudHash)p.data=old.data}
   const replacement={...response.audit,_cloud:{revision:response.revision,remoteRevision:response.revision,seq:0,dirty:false,updatedAt:response.updatedAt}};
   S.sessions[S.sessions.indexOf(s)]=replacement;migratePhotoReviewState();
@@ -555,13 +621,20 @@ document.addEventListener("change",async e=>{
  else if(t.matches("[data-f]"))setItem(s,t.dataset.id,d=>{d[t.dataset.f]=t.value});
  
 });
-document.addEventListener("input",e=>{const t=e.target;if(!t.matches("[data-q]"))return;const q=t.value.trim().toLowerCase();
+document.addEventListener("input",e=>{const t=e.target,s=sess();if(s&&t.matches("[data-comment]")){setItem(s,seed[ui.idx].id,d=>{d.comment=t.value});return}if(s&&t.matches("[data-f]")){setItem(s,t.dataset.id,d=>{d[t.dataset.f]=t.value});return}if(!t.matches("[data-q]"))return;const q=t.value.trim().toLowerCase();
  if(ui.view==="jadwal"){document.querySelectorAll("[data-hay]").forEach(n=>n.hidden=!!q&&!n.dataset.hay.includes(q));return}
  document.querySelectorAll(".ecard").forEach(c=>{const bd=c.querySelector(".ebody");let any=false;c.querySelectorAll(".it").forEach(n=>{const m=!q||n.dataset.hay.includes(q);n.hidden=!m;if(m)any=true});bd.hidden=q?!any:!c.dataset.open;c.hidden=!!q&&!any})});
 function moveItem(dir){const next=Math.max(0,Math.min(seed.length-1,ui.idx+dir));if(next===ui.idx)return;ui.idx=next;render()}
 let swipeStart=null;$app.addEventListener("touchstart",e=>{if(ui.view!=="item")return;const t=e.changedTouches[0];swipeStart={x:t.clientX,y:t.clientY}},{passive:true});$app.addEventListener("touchend",e=>{if(!swipeStart||ui.view!=="item")return;const t=e.changedTouches[0],dx=t.clientX-swipeStart.x,dy=t.clientY-swipeStart.y;swipeStart=null;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25)moveItem(dx<0?1:-1)},{passive:true});
-window.addEventListener("online",()=>{pumpPhotoReviews();cloud.paused=false;refreshCatalog();scheduleCloud(0);});window.addEventListener("offline",()=>{render(true);updateCloudStatus()});
-load().then(()=>{render();pumpPhotoReviews()});
+window.addEventListener("online",()=>{if(sessionLeaving)return;pumpPhotoReviews();cloud.paused=false;refreshCatalog();scheduleCloud(0);});window.addEventListener("offline",()=>{render(true);updateCloudStatus()});
+let pausedBeforeLogout=false;
+window.SPBU_BEFORE_LOGOUT=async()=>{
+ sessionLeaving=true;pausedBeforeLogout=cloud.paused;cloud.paused=true;
+ clearTimeout(t);clearTimeout(queueWakeTimer);clearTimeout(cloud.timer);closeCamera();
+ return await persistState();
+};
+window.SPBU_LOGOUT_FAILED=()=>{sessionLeaving=false;cloud.paused=pausedBeforeLogout;pumpPhotoReviews();scheduleCloud(0);};
+load().then(async()=>{await startNavigation();render();pumpPhotoReviews()});
 })();
 </script>
 <script>if("serviceWorker"in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(function(){})}</script>

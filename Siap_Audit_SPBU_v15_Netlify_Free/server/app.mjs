@@ -1,6 +1,6 @@
 import worker from "../worker/index.js";
 import { authConfiguration, createAuth, AuthError, clearSessionCookie } from "./auth.mjs";
-import { loginPage, usersPage, logoutPage, appAccountBar } from "./pages.mjs";
+import { loginPage, usersPage, appAccountBar } from "./pages.mjs";
 import { createAudits } from "./audits.mjs";
 
 const PUBLIC_ASSETS = new Set(["/icon-192.png", "/icon-512.png", "/manifest.webmanifest"]);
@@ -91,11 +91,12 @@ export function createApp({ getEnv = () => process.env, getStore, getAuditStore 
       }
       user = await auth.currentUser(request);
       if (path === "/auth/login" && ["GET", "HEAD"].includes(request.method)) {
-        return secure(user ? redirect("/") : html(loginPage()));
+        return secure(user ? redirect("/") : html(loginPage({ message: url.searchParams.get("notice") === "logged-out" ? "Anda sudah keluar. Masuk kembali untuk melanjutkan." : "" })));
       }
       if (path === "/auth/logout") {
         if (request.method !== "POST") return secure(json({ error: "Gunakan tombol Keluar.", code: "METHOD_NOT_ALLOWED" }, 405));
-        return secure(html(logoutPage(), 200, { "set-cookie": clearSessionCookie(), "clear-site-data": '"cache"' }));
+        const headers = { "set-cookie": clearSessionCookie(), "clear-site-data": '"cache"' };
+        return secure(api ? json({ ok: true }, 200, headers) : redirect("/auth/login?notice=logged-out", headers));
       }
       if (!user) {
         return secure(api || request.method === "POST"

@@ -7,14 +7,20 @@ import { harness, audit, path, ELEMENT, JPEG, ORIGIN } from "./cloud-helpers.mjs
 
 const html = await readFile(new URL("../frontend/index.html", import.meta.url), "utf8");
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>(.*?)<\/script>/gs)].map(x => x[1]);
-const hook = "load().then(()=>{render();pumpPhotoReviews()});";
-const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,render};";
+const hook = "load().then(async()=>{await startNavigation();render();pumpPhotoReviews()});";
+const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,startNavigation,navigation,closeCamera,render};";
 const flush = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };
 
 function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", role: "admin", stationNumber: "" }, storage = new Map()) {
-  let timerID = 0, fetchOverride = null; const timers = new Map(), downloads = [], objects = new Map(), handlers = new Map();
-  const app = { innerHTML: "", addEventListener() {} }, cloudStatus = { innerHTML: "" }, printdoc = { innerHTML: "" }, toast = { textContent: "", classList: { add() {}, remove() {} } };
-  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : toast, querySelectorAll: () => [],
+  let timerID = 0, fetchOverride = null; const timers = new Map(), downloads = [], objects = new Map(), handlers = new Map(), windowHandlers = new Map();
+  const entries = [{ state: null, url: ORIGIN + "/" }]; let position = 0;
+  const history = { get state() { return entries[position].state; },
+    replaceState(state, _, url) { entries[position] = { state: structuredClone(state), url: String(url) }; },
+    pushState(state, _, url) { entries.splice(position + 1); entries.push({ state: structuredClone(state), url: String(url) }); position++; },
+    back() { moveHistory(-1); }
+  };
+  const app = { innerHTML: "", addEventListener() {} }, cloudStatus = { innerHTML: "" }, printdoc = { innerHTML: "" }, video = { srcObject: null, play: async () => {} }, toast = { textContent: "", classList: { add() {}, remove() {} } };
+  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : id === "camera-video" ? video : toast, querySelectorAll: () => [],
     addEventListener(name, fn) { const a = handlers.get(name) || []; a.push(fn); handlers.set(name, a); },
     createElement: tag => tag === "a" ? { href: "", download: "", click() { downloads.push({ name: this.download, blob: objects.get(this.href) }); } } : { width: 0, height: 0, getContext: () => ({ drawImage() {} }), toDataURL: () => "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64") },
     body: { classList: { add() {}, remove() {} } }
@@ -32,8 +38,8 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
   }
   class ObjectURL extends URL { static createObjectURL(blob) { const name = "blob:test-" + objects.size; objects.set(name, blob); return name; } static revokeObjectURL() {} }
   const context = vm.createContext({ console, document, indexedDB, navigator: { onLine: true }, location: { protocol: "https:", href: ORIGIN }, localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, SPBU_USER: structuredClone(profile),
-    Date, Intl, structuredClone, AbortController, Request, Response, Blob, Headers, FileReader, URLSearchParams, URL: ObjectURL, crypto: webcrypto, atob, btoa, TextEncoder, TextDecoder,
-    setTimeout: (fn, delay) => { const id = ++timerID; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id), confirm: () => true, scrollTo() {}, addEventListener() {},
+    Date, Intl, structuredClone, AbortController, Request, Response, Blob, Headers, FileReader, URLSearchParams, URL: ObjectURL, crypto: webcrypto, atob, btoa, TextEncoder, TextDecoder, history,
+    setTimeout: (fn, delay) => { const id = ++timerID; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id), confirm: () => true, scrollTo() {}, addEventListener(name, fn) { const a = windowHandlers.get(name) || []; a.push(fn); windowHandlers.set(name, a); },
     fetch: async (url, options = {}) => {
       if (!context.navigator.onLine) throw new TypeError("Failed to fetch");
       const real = async () => {
@@ -46,7 +52,8 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
   context.window = context;
   for (const script of scripts) new vm.Script(script.replace(hook, exposure)).runInContext(context);
   const api = context.client;
-  return { api, storage, context, downloads, cloudStatus, toast, handlers, override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
+  async function moveHistory(delta) { const at = position + delta; if (at < 0 || at >= entries.length) return; position = at; for (const fn of windowHandlers.get("popstate") || []) await fn({ state: entries[position].state }); await flush(); }
+  return { api, storage, context, downloads, cloudStatus, toast, handlers, entries, position: () => position, back: () => moveHistory(-1), forward: () => moveHistory(1), override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
 }
 function photo(photoID = "p1") { return { id: photoID, name: "bukti.jpg", type: "image/jpeg", data: "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64"), uploadedAt: "2026-11-05T07:00:00Z", aiReview: { status: "done", attempts: 1 } }; }
 function state(a) { a.evidence[ELEMENT] = [photo()]; return { sessions: [a] }; }
@@ -166,4 +173,39 @@ test("backup parsing rejects photo strings containing HTML or unsupported image 
   a.evidence[ELEMENT] = [photo(), { ...photo("attack"), data: 'data:image/jpeg;base64,AAAA\" onerror=\"alert(1)' }, { ...photo("svg"), data: "data:image/svg+xml,<svg onload=alert(1)>" }];
   const result = b.api.parseBackup(JSON.stringify({ format: "siap-audit-spbu-cadangan", sessions: [a] }), []);
   assert.equal(result.sessions[0].evidence[ELEMENT].length, 1);
+});
+
+test('phone Back returns from a checklist item to its audit and then home without ending login',async()=>{
+ const h=harness(),{b,owner,id}=await uploaded(h);b.api.ui().view='jadwal';b.api.ui().sid=null;await b.api.startNavigation();b.api.render();
+ await b.api.openCloudAudit(id);const ui=b.api.ui();ui.view='item';ui.idx=0;b.api.render();const count=b.entries.length;
+ ui.idx=1;b.api.render();ui.idx=2;b.api.render();assert.equal(b.entries.length,count,'criterion swipes replace one item entry');
+ await b.back();assert.equal(ui.view,'sess');assert.equal(ui.sid,id);await b.back();assert.equal(ui.view,'jadwal');assert.equal(ui.sid,null);
+ assert.equal((await h.request('/auth/session',{cookie:owner.cookie})).status,200);
+ await b.forward();assert.equal(ui.view,'sess');assert.equal(ui.sid,id);
+});
+test('phone Back closes a form on home and Forward can reopen that form',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);await b.api.startNavigation();const ui=b.api.ui();ui.sheet=true;b.api.render();
+ await b.back();assert.equal(ui.sheet,false);assert.equal(ui.view,'jadwal');await b.forward();assert.equal(ui.sheet,true);
+});
+test('phone Back closes the active camera and stops its stream before returning to the audit',async()=>{
+ const h=harness(),{b,id}=await uploaded(h);await b.api.startNavigation();await b.api.openCloudAudit(id);let stopped=0;
+ b.api.ui().camera={sid:id,ei:0,stream:{getTracks:()=>[{stop:()=>stopped++}]}};b.api.render();await b.back();assert.equal(b.api.ui().camera,null);assert.equal(stopped,1);assert.equal(b.api.ui().view,'sess');
+});
+test('typing a comment is saved before phone Back even without a blur event',async()=>{
+ const h=harness(),{b,id}=await uploaded(h);await b.api.startNavigation();await b.api.openCloudAudit(id);const ui=b.api.ui();ui.view='item';ui.idx=0;b.api.render();
+ const target={value:'Catatan sebelum menekan kembali',matches:selector=>selector==='[data-comment]'};
+ for(const fn of b.handlers.get('input')||[])fn({target});await b.back();await b.api.persistState();
+ assert.equal(b.storage.get(b.api.db+':state').sessions[0].items['1.1.1.a'].comment,target.value);assert.equal(ui.view,'sess');
+});
+test('logout preparation keeps unsent changes on the device and pauses further synchronization',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);b.api.setState(state(audit()));b.api.markAuditChanged(b.api.state().sessions[0]);
+ assert.equal(await b.context.SPBU_BEFORE_LOGOUT(),true);assert.equal(b.api.cloud.paused,true);await b.sync();assert.equal(h.data.values.size,0);assert.ok(b.storage.get(b.api.db+':state').sessions[0].evidence[ELEMENT][0].data);
+ b.context.SPBU_LOGOUT_FAILED();assert.equal(b.api.cloud.paused,false);
+});
+
+test('closing a camera normally does not make phone Back reopen that camera',async()=>{
+ const h=harness(),{b,id}=await uploaded(h);await b.api.startNavigation();await b.api.openCloudAudit(id);
+ b.api.ui().camera={sid:id,ei:0,stream:{getTracks:()=>[{stop(){}}]}};b.api.render();
+ b.api.closeCamera();b.api.render();await flush();assert.equal(b.api.ui().camera,null);assert.equal(b.api.ui().view,'sess');
+ await b.back();assert.equal(b.api.ui().view,'jadwal');assert.equal(b.api.ui().camera,null);
 });

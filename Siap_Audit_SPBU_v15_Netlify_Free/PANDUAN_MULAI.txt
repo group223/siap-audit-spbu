@@ -1,6 +1,19 @@
-# Panduan pembaruan v16 — Siap Audit SPBU
+# Panduan pembaruan v16.0.1 — Siap Audit SPBU
 
 Untuk aplikasi yang sudah berada di https://siap-audit-spbu.netlify.app/. Gunakan proyek Netlify dan repository GitHub yang sama agar akun lama serta penyimpanan server tetap tersedia.
+
+## Perbaikan Keluar dan tombol Kembali
+
+Paket ini sudah berisi perbaikan v16.0.1. Perbarui folder yang sama melalui GitHub dan tunggu Netlify Published. Tidak perlu membuat proyek baru atau mengubah environment variables.
+
+Setelah Published:
+
+1. Di aplikasi yang masih terbuka, muat ulang satu kali agar memakai kode terbaru. Jangan hapus data browser.
+2. Masuk, buka audit, masuk ke salah satu butir, lalu tekan Kembali pada HP: kembali ke daftar elemen audit. Tekan Kembali lagi: kembali ke Jadwal; akun tetap masuk selama sesi aktif.
+3. Tekan Keluar di bagian atas: tunggu proses selesai dan halaman login muncul. Jika koneksi gagal, pesan ditampilkan dan tombol bisa dicoba lagi.
+4. Setelah Keluar, tombol Kembali tidak boleh memberikan akses ke audit tanpa masuk kembali.
+
+Sesi berlaku 12 jam. Berakhirnya masa sesi, perubahan password, atau pencabutan akses petugas tetap dapat meminta login kembali.
 
 ## 1. Simpan cadangan sebelum memperbarui
 
@@ -10,13 +23,13 @@ Untuk aplikasi yang sudah berada di https://siap-audit-spbu.netlify.app/. Gunaka
 
 ## 2. Ekstrak dan unggah pembaruan ke GitHub
 
-1. Unduh **Siap_Audit_SPBU_v16_Penyimpanan_Pusat.zip** lalu ekstrak.
+1. Unduh **Siap_Audit_SPBU_v16_0_1_Perbaikan_Login.zip** lalu ekstrak.
 2. Di dalam hasil ekstrak ada folder **Siap_Audit_SPBU_v15_Netlify_Free**. Nama folder tetap sama agar cocok dengan hosting yang sudah terpasang; program di dalamnya sudah v16.
 3. Buka https://github.com/group223/siap-audit-spbu pada branch **main**.
 4. Pastikan berada di halaman utama repository, lalu pilih **Add file → Upload files**.
 5. Seret **folder Siap_Audit_SPBU_v15_Netlify_Free beserta seluruh isinya** dari hasil ekstrak ke halaman unggah. Jangan unggah berkas ZIP. Jangan masuk ke folder repository lalu menyeret folder yang sama, karena akan membuat folder bertingkat.
 6. Klik **Commit changes**. Jika muncul konfirmasi mengganti berkas, gunakan berkas baru. Selesaikan commit ke main.
-7. Buka folder tersebut di GitHub: package.json harus menunjukkan versi **16.0.0**, dan server/ harus berisi **audits.mjs** serta **audit-schema.json**.
+7. Buka folder tersebut di GitHub: package.json harus menunjukkan versi **16.0.1**, dan server/ harus berisi **audits.mjs** serta **audit-schema.json**.
 
 Paket tidak berisi password atau API key operasional. Tidak perlu mengubah tiga variabel Netlify yang sudah berhasil dipakai.
 

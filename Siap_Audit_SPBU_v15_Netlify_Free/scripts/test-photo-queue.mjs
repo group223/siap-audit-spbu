@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 const html = await readFile(new URL('../frontend/index.html', import.meta.url), 'utf8');
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>(.*?)<\/script>/gs)].map(x => x[1]);
-const hook = 'load().then(()=>{render();pumpPhotoReviews()});';
+const hook = 'load().then(async()=>{await startNavigation();render();pumpPhotoReviews()});';
 assert.ok(scripts.some(s => s.includes(hook)), 'test harness must replace the actual application startup');
 const expose = 'globalThis.auditTest={getState:()=>S,getUI:()=>ui,setState:v=>{S=v;ui.sid=v.sessions[0]?.id||null;ui.view="sess";ui.open[0]=true},load,persistState,migratePhotoReviewState,enqueuePhotoReview,pumpPhotoReviews,elementEvidenceHtml,render,openCamera};';
 const flush = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };

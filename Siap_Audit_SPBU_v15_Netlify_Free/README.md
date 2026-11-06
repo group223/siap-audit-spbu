@@ -1,6 +1,15 @@
-# Siap Audit SPBU v16 — penyimpanan pusat
+# Siap Audit SPBU v16.0.1 — penyimpanan pusat dan navigasi
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, dan foto disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
+
+## Perbaikan v16.0.1
+
+- Tombol Keluar memiliki area sentuh minimal 44 px, status proses, dan pesan jika pengiriman gagal. Logout memanggil server untuk menghapus cookie sesi dan mengganti halaman dengan login. Formulir logout biasa tetap berfungsi jika JavaScript tidak tersedia.
+- Setelah berhasil masuk, halaman login diganti dalam riwayat browser. Login yang dipulihkan dari cache memeriksa sesi; akun yang masih aktif kembali ke aplikasi.
+- Tombol Kembali/Maju browser mengikuti halaman jadwal, audit, dan butir penilaian. Pergeseran antarbutir mengganti satu entri agar pengguna tidak perlu menekan Kembali 120 kali. Kembali juga menutup kamera/pratinjau/formulir dan menghentikan stream kamera bila ditutup.
+- Catatan dikirim ke penyimpanan lokal ketika diketik, termasuk sebelum menekan tombol Kembali tanpa berpindah fokus terlebih dahulu.
+- Sebelum logout, perubahan terbaru disimpan di perangkat dan antrean dijeda. Jika penyimpanan lokal gagal, aplikasi meminta cadangan sebelum keluar. Setelah logout, pemulihan halaman aplikasi dari cache memeriksa sesi lagi.
+- Masa berlaku sesi tetap 12 jam. Tombol Kembali tidak mengakhiri sesi; sesi yang kedaluwarsa atau dicabut tetap memerlukan login kembali.
 
 ## Perubahan v16
 
@@ -36,7 +45,7 @@ Nama pengguna memakai 3–40 karakter: huruf kecil, angka, titik, garis bawah, a
 | Functions directory | netlify/functions, relatif terhadap Base directory |
 | Node.js | 22 |
 
-Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.0.0. Untuk pemasangan di root repository, Base directory boleh kosong.
+Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.0.1. Untuk pemasangan di root repository, Base directory boleh kosong.
 
 ## Penyimpanan dan akses
 
@@ -75,7 +84,7 @@ npm run validate
 npm run check:bundle
 ```
 
-Pengujian otomatis lulus: 32 skenario inti dan 51 skenario integrasi, total **83 skenario**. Mencakup password 8 karakter, izin lintas SPBU, penyimpanan terpisah, perangkat kedua, offline, respons terputus, konflik, migrasi, pemulihan, cache, dan escaping profil. Pengujian memakai penyimpanan tiruan serta respons Gemini tiruan; paket Function beserta SDK dan skema berhasil dibundel. Akses akun Netlify produksi, Blobs nyata, kamera HP, serta kuota Gemini nyata perlu diperiksa setelah deploy. Paket pembaruan ini belum terbit ke akun Netlify pengguna.
+Pengujian otomatis lulus: 32 skenario inti dan 67 skenario integrasi, total **99 skenario**. Mencakup password 8 karakter, izin lintas SPBU, penyimpanan terpisah, perangkat kedua, offline, respons terputus, konflik, migrasi, pemulihan, cache, dan escaping profil. Pengujian memakai penyimpanan tiruan serta respons Gemini tiruan; paket Function beserta SDK dan skema berhasil dibundel. Klik Keluar dan Kembali diuji pada Chrome dengan server serta akun uji sementara. Akses akun Netlify produksi, Blobs nyata, tombol fisik HP, kamera HP, serta kuota Gemini nyata perlu diperiksa setelah deploy. Paket pembaruan ini belum terbit ke akun Netlify pengguna.
 
 ## Dokumentasi resmi
 
