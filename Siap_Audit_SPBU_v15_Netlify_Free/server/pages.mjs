@@ -27,7 +27,9 @@ function accountSession(mode) {
     } catch { /* An offline history restore does not end the account session. */ }
     finally { clearTimeout(timer); checking = false; }
   }
-  window.addEventListener('pageshow', event => { if (mode === 'login' || event.persisted) verifySession(); });
+  // A normal document request already passed the server's account gate.
+  // Only history-cache restores need an extra session request.
+  window.addEventListener('pageshow', event => { if (event.persisted) verifySession(); });
   document.addEventListener('submit', async event => {
     const form = event.target.closest('form');
     if (!form) return;
@@ -43,7 +45,11 @@ function accountSession(mode) {
     message(form, logout ? 'Mengakhiri sesi…' : 'Memeriksa akun…');
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
     try {
-      if (logout && window.SPBU_BEFORE_LOGOUT && await window.SPBU_BEFORE_LOGOUT() === false) throw new Error('Perubahan di HP belum dapat disimpan. Cadangkan audit sebelum keluar.');
+      if (logout && window.SPBU_BEFORE_LOGOUT) {
+        message(form, 'Menyimpan perubahan terakhir di HP…');
+        if (await window.SPBU_BEFORE_LOGOUT() === false) throw new Error('Perubahan di HP belum dapat disimpan. Cadangkan audit sebelum keluar.');
+        message(form, 'Mengakhiri sesi…');
+      }
       const body = logout ? '' : new URLSearchParams(new FormData(form)).toString();
       const response = await fetch(action, { method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' }, body, signal: controller.signal });
       let payload = {}; try { payload = await response.json(); } catch {}

@@ -8,27 +8,28 @@ import { harness, audit, path, ELEMENT, JPEG, ORIGIN } from "./cloud-helpers.mjs
 const html = await readFile(new URL("../frontend/index.html", import.meta.url), "utf8");
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>(.*?)<\/script>/gs)].map(x => x[1]);
 const hook = "load().then(async()=>{await startNavigation();render();pumpPhotoReviews()});";
-const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,startNavigation,navigation,closeCamera,render};";
+const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,startNavigation,navigation,closeCamera,openNativeCamera,nativePhotoJPEG,nativePhotoTasks,render};";
 const flush = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };
 
 function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", role: "admin", stationNumber: "" }, storage = new Map()) {
-  let timerID = 0, fetchOverride = null; const timers = new Map(), downloads = [], objects = new Map(), handlers = new Map(), windowHandlers = new Map();
+  let timerID = 0, fetchOverride = null, writeCount = 0, writeGate = null, imageGate = null; const timers = new Map(), downloads = [], objects = new Map(), handlers = new Map(), windowHandlers = new Map(), canvasSizes = [], revokedURLs = [];
   const entries = [{ state: null, url: ORIGIN + "/" }]; let position = 0;
   const history = { get state() { return entries[position].state; },
     replaceState(state, _, url) { entries[position] = { state: structuredClone(state), url: String(url) }; },
     pushState(state, _, url) { entries.splice(position + 1); entries.push({ state: structuredClone(state), url: String(url) }); position++; },
     back() { moveHistory(-1); }
   };
+  const nativeInput={id:'native-camera',files:[],value:'',clicks:0,click(){this.clicks++},matches:()=>false};
   const app = { innerHTML: "", addEventListener() {} }, cloudStatus = { innerHTML: "" }, printdoc = { innerHTML: "" }, video = { srcObject: null, play: async () => {} }, toast = { textContent: "", classList: { add() {}, remove() {} } };
-  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : id === "camera-video" ? video : toast, querySelectorAll: () => [],
+  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : id === "camera-video" ? video : id === "native-camera" ? nativeInput : toast, querySelectorAll: () => [],
     addEventListener(name, fn) { const a = handlers.get(name) || []; a.push(fn); handlers.set(name, a); },
-    createElement: tag => tag === "a" ? { href: "", download: "", click() { downloads.push({ name: this.download, blob: objects.get(this.href) }); } } : { width: 0, height: 0, getContext: () => ({ drawImage() {} }), toDataURL: () => "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64") },
+    createElement: tag => tag === "a" ? { href: "", download: "", click() { downloads.push({ name: this.download, blob: objects.get(this.href) }); } } : { width: 0, height: 0, getContext() { return { drawImage: (...args) => canvasSizes.push({width:this.width,height:this.height,args:args.slice(1)}) }; }, toDataURL: () => "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64") },
     body: { classList: { add() {}, remove() {} } }
   };
   const indexedDB = { open(name) { const request = {}; queueMicrotask(() => {
     request.result = { objectStoreNames: { contains: () => true }, close() {}, createObjectStore() {}, transaction() {
       const tx = { objectStore: () => ({
-        put(value, key) { storage.set(name + ":" + key, structuredClone(value)); queueMicrotask(() => tx.oncomplete?.()); },
+        put(value, key) { writeCount++;storage.set(name + ":" + key, structuredClone(value)); Promise.resolve(writeGate).then(() => tx.oncomplete?.()); },
         get(key) { const r = {}; queueMicrotask(() => { r.result = structuredClone(storage.get(name + ":" + key)); r.onsuccess?.(); }); return r; }
       }) }; return tx;
     } }; request.onsuccess?.();
@@ -36,9 +37,12 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
   class FileReader {
     readAsDataURL(blob) { blob.arrayBuffer().then(value => { this.result = "data:" + blob.type + ";base64," + Buffer.from(value).toString("base64"); this.onload?.(); }, () => this.onerror?.()); }
   }
-  class ObjectURL extends URL { static createObjectURL(blob) { const name = "blob:test-" + objects.size; objects.set(name, blob); return name; } static revokeObjectURL() {} }
+  class ObjectURL extends URL { static createObjectURL(blob) { const name = "blob:test-" + objects.size; objects.set(name, blob); return name; } static revokeObjectURL(url) { revokedURLs.push(url);objects.delete(url); } }
+  class Image {
+    set src(url) { const file=objects.get(url);this.naturalWidth=file?.width||4000;this.naturalHeight=file?.height||3000;Promise.resolve(imageGate).then(()=>file?.decodeError?this.onerror?.():this.onload?.()); }
+  }
   const context = vm.createContext({ console, document, indexedDB, navigator: { onLine: true }, location: { protocol: "https:", href: ORIGIN }, localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, SPBU_USER: structuredClone(profile),
-    Date, Intl, structuredClone, AbortController, Request, Response, Blob, Headers, FileReader, URLSearchParams, URL: ObjectURL, crypto: webcrypto, atob, btoa, TextEncoder, TextDecoder, history,
+    Date, Intl, structuredClone, AbortController, Request, Response, Blob, Headers, FileReader, Image, URLSearchParams, URL: ObjectURL, crypto: webcrypto, atob, btoa, TextEncoder, TextDecoder, history,
     setTimeout: (fn, delay) => { const id = ++timerID; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id), confirm: () => true, scrollTo() {}, addEventListener(name, fn) { const a = windowHandlers.get(name) || []; a.push(fn); windowHandlers.set(name, a); },
     fetch: async (url, options = {}) => {
       if (!context.navigator.onLine) throw new TypeError("Failed to fetch");
@@ -53,7 +57,8 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
   for (const script of scripts) new vm.Script(script.replace(hook, exposure)).runInContext(context);
   const api = context.client;
   async function moveHistory(delta) { const at = position + delta; if (at < 0 || at >= entries.length) return; position = at; for (const fn of windowHandlers.get("popstate") || []) await fn({ state: entries[position].state }); await flush(); }
-  return { api, storage, context, downloads, cloudStatus, toast, handlers, entries, position: () => position, back: () => moveHistory(-1), forward: () => moveHistory(1), override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
+  async function selectNative(files) { nativeInput.files=files;const pending=(handlers.get('change')||[]).map(fn=>fn({target:nativeInput}));await Promise.all(pending);await flush(); }
+  return { api, storage, context, nativeInput, selectNative, canvasSizes, revokedURLs, holdImages:promise=>{imageGate=promise}, downloads, cloudStatus, toast, handlers, entries, writes: () => writeCount, holdWrites: promise => { writeGate = promise; }, position: () => position, back: () => moveHistory(-1), forward: () => moveHistory(1), override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
 }
 function photo(photoID = "p1") { return { id: photoID, name: "bukti.jpg", type: "image/jpeg", data: "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64"), uploadedAt: "2026-11-05T07:00:00Z", aiReview: { status: "done", attempts: 1 } }; }
 function state(a) { a.evidence[ELEMENT] = [photo()]; return { sessions: [a] }; }
@@ -208,4 +213,87 @@ test('closing a camera normally does not make phone Back reopen that camera',asy
  b.api.ui().camera={sid:id,ei:0,stream:{getTracks:()=>[{stop(){}}]}};b.api.render();
  b.api.closeCamera();b.api.render();await flush();assert.equal(b.api.ui().camera,null);assert.equal(b.api.ui().view,'sess');
  await b.back();assert.equal(b.api.ui().view,'jadwal');assert.equal(b.api.ui().camera,null);
+});
+
+test('logout does not rewrite already-saved data, including an unchanged blur event',async()=>{
+ const h=harness(),{b,id}=await uploaded(h);await b.api.openCloudAudit(id);b.api.ui().idx=0;
+ const target={value:'Catatan tersimpan',matches:s=>s==='[data-comment]'};
+ for(const fn of b.handlers.get('input')||[])fn({target});await b.api.persistState();const writes=b.writes();
+ for(const fn of b.handlers.get('change')||[])await fn({target});
+ assert.equal(await b.context.SPBU_BEFORE_LOGOUT(),true);assert.equal(b.writes(),writes,'logout must not copy all photos again');
+});
+test('logout reuses an in-progress local save instead of starting another full write',async()=>{
+ const h=harness(),{b}=await uploaded(h);const s=b.api.state().sessions[0];s.items['1.1.1.a'].comment='Belum selesai disimpan';b.api.markAuditChanged(s);
+ let release;b.holdWrites(new Promise(resolve=>release=resolve));const saving=b.api.persistState();await flush();const writes=b.writes();let completed=false;
+ const leaving=b.context.SPBU_BEFORE_LOGOUT().then(result=>{completed=true;return result});await flush();assert.equal(completed,false);assert.equal(b.writes(),writes);
+ release();await saving;assert.equal(await leaving,true);assert.equal(b.writes(),writes);assert.equal(b.storage.get(b.api.db+':state').sessions[0].items['1.1.1.a'].comment,'Belum selesai disimpan');
+});
+test('edits made after an earlier save snapshot are flushed before logout',async()=>{
+ const h=harness(),{b}=await uploaded(h);const s=b.api.state().sessions[0];s.items['1.1.1.a'].comment='Versi pertama';b.api.markAuditChanged(s);
+ let release;b.holdWrites(new Promise(resolve=>release=resolve));const saving=b.api.persistState();await flush();const writes=b.writes();
+ s.items['1.1.1.a'].comment='Versi terbaru';b.api.markAuditChanged(s);const leaving=b.context.SPBU_BEFORE_LOGOUT();release();await saving;assert.equal(await leaving,true);
+ assert.equal(b.writes(),writes+1);assert.equal(b.storage.get(b.api.db+':state').sessions[0].items['1.1.1.a'].comment,'Versi terbaru');
+});
+test('local storage failure never reports unsaved edits as safe for logout',async()=>{
+ const h=harness(),{b}=await uploaded(h);const s=b.api.state().sessions[0];s.items['1.1.1.a'].comment='Perubahan belum aman';b.api.markAuditChanged(s);
+ b.context.indexedDB.open=()=>{throw new Error('Storage unavailable')};b.context.localStorage.setItem=()=>{throw new Error('Quota exceeded')};
+ assert.equal(await b.context.SPBU_BEFORE_LOGOUT(),false);assert.equal(s.items['1.1.1.a'].comment,'Perubahan belum aman');
+});
+
+test('a fallback save used for logout restores the newest edits ahead of an older IndexedDB copy',async()=>{
+ const h=harness(),{b,owner}=await uploaded(h),local=new Map(),ls={getItem:key=>local.get(key)||null,setItem:(key,value)=>local.set(key,value),removeItem:key=>local.delete(key)};
+ b.context.localStorage=ls;const s=b.api.state().sessions[0];s.items['1.1.1.a'].comment='Tersimpan lewat cadangan lokal';b.api.markAuditChanged(s);
+ b.context.indexedDB.open=()=>{throw new Error('Write temporarily unavailable')};assert.equal(await b.context.SPBU_BEFORE_LOGOUT(),true);
+ const reloaded=browser(h,owner.cookie,undefined,b.storage);reloaded.context.localStorage=ls;await reloaded.load();
+ assert.equal(reloaded.api.state().sessions[0].items['1.1.1.a'].comment,'Tersimpan lewat cadangan lokal');assert.equal(reloaded.storage.get(reloaded.api.db+':state').sessions[0].items['1.1.1.a'].comment,'Tersimpan lewat cadangan lokal');assert.equal(local.has(b.api.db),false);
+});
+
+function nativeFile(extra={}){const file=new Blob([JPEG],{type:'image/jpeg'});return Object.assign(file,{name:'kamera.jpg',...extra})}
+function allowAI(b,gate){let calls=0;b.override(async(url,options,real)=>{
+ if(url!=='/api/evidence/analyze')return real();const input=JSON.parse(options.body);calls++;if(calls===1&&gate)await gate;
+ return Response.json({model:'kamera-test',photoCheck:{status:'layak',reason:'Bukti terlihat'},results:input.criteria.map(x=>({code:x.code,status:'terdukung',reason:'Terlihat'}))});
+});return()=>calls;}
+
+test('the primary photo button opens the stable rear-camera picker within the user gesture',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;b.api.ui().view='sess';b.api.ui().activeReviews.push({photoId:'existing-ai'});
+ const input=html.match(/<input id="native-camera"[^>]+>/)?.[0];assert.ok(input);assert.match(input,/capture="environment"/);assert.match(input,/accept="image\/\*"/);assert.ok(!/\bmultiple\b/.test(input));
+ b.api.openNativeCamera(0);assert.equal(b.nativeInput.clicks,1);assert.equal(b.api.ui().camera,null);
+ b.api.render(true);assert.match(html,/data-act="open-native-camera"/);assert.equal(b.nativeInput.clicks,1);
+});
+test('one native photo is resized, persisted, and automatically sent to AI without an analyze button',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;b.api.ui().view='sess';const calls=allowAI(b);
+ b.api.openNativeCamera(0);await b.selectNative([nativeFile({width:6000,height:4000})]);await flush();
+ assert.equal(a.evidence[ELEMENT].length,1);assert.equal(a.evidence[ELEMENT][0].type,'image/jpeg');assert.equal(a.evidence[ELEMENT][0].aiReview.status,'done');assert.equal(calls(),1);
+ assert.equal(b.canvasSizes[0].width,1800);assert.equal(b.canvasSizes[0].height,1200);assert.equal(b.nativeInput.value,'');assert.equal(b.revokedURLs.length,1);assert.equal(b.api.nativePhotoTasks.size,0);
+ assert.equal(b.storage.get(b.api.db+':state').sessions[0].evidence[ELEMENT].length,1);
+});
+test('another native photo can be captured while the previous AI request is still running',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;b.api.ui().view='sess';let release;
+ const calls=allowAI(b,new Promise(resolve=>release=resolve));b.api.openNativeCamera(0);await b.selectNative([nativeFile()]);assert.equal(calls(),1);
+ b.api.openNativeCamera(0);assert.equal(b.nativeInput.clicks,2);await b.selectNative([nativeFile()]);assert.equal(a.evidence[ELEMENT].length,2);assert.equal(a.evidence[ELEMENT][1].aiReview.status,'queued');
+ release();await flush();await flush();assert.equal(calls(),2);assert.ok(a.evidence[ELEMENT].every(p=>p.aiReview.status==='done'));
+});
+test('cancelling the native camera keeps existing photos and allows the camera to open again',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=state(audit()).sessions[0];b.api.setState({sessions:[a]});b.api.ui().sid=a.id;b.api.openNativeCamera(0);
+ for(const fn of b.handlers.get('cancel')||[])fn({target:b.nativeInput});assert.equal(a.evidence[ELEMENT].length,1);
+ b.api.openNativeCamera(0);assert.equal(b.nativeInput.clicks,2);await b.selectNative([]);assert.equal(a.evidence[ELEMENT].length,1);assert.equal(b.api.nativePhotoTasks.size,0);
+});
+test('invalid, corrupt, oversized and multiple native files never create evidence or AI requests',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;const calls=allowAI(b);
+ const invalid=[new Blob(['<svg/>'],{type:'image/svg+xml'}),new Blob(['pdf'],{type:'application/pdf'}),{size:41*1024*1024,type:'image/jpeg'},nativeFile({decodeError:true})];
+ for(const file of invalid){b.api.openNativeCamera(0);await b.selectNative([file]);assert.equal(Object.values(a.evidence).flat().length,0)}
+ b.api.openNativeCamera(0);await b.selectNative([nativeFile(),nativeFile()]);assert.equal(Object.values(a.evidence).flat().length,0);assert.equal(calls(),0);assert.equal(b.nativeInput.value,'');
+});
+test('a native photo stays attached to its original audit if the user opens another audit',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit('original'),other=audit('other');b.api.setState({sessions:[a,other]});b.api.ui().sid=a.id;b.api.ui().view='sess';allowAI(b);
+ b.api.openNativeCamera(0);b.api.ui().sid=other.id;await b.selectNative([nativeFile()]);assert.equal(a.evidence[ELEMENT].length,1);assert.equal(Object.values(other.evidence).flat().length,0);assert.equal(b.api.ui().sid,other.id);assert.equal(other._cloud,undefined);
+});
+test('a photo whose audit was deleted during decoding is not attached to another audit',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;let release;b.holdImages(new Promise(resolve=>release=resolve));
+ b.api.openNativeCamera(0);const receiving=b.selectNative([nativeFile()]);await flush();b.api.setState({sessions:[]});release();await receiving;assert.equal(b.api.state().sessions.length,0);assert.match(b.toast.textContent,/tidak tersedia/);assert.equal(b.revokedURLs.length,1);
+});
+test('logout waits for an accepted native photo to finish local processing, leaving AI queued for next login',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;b.api.ui().view='sess';let release;b.holdImages(new Promise(resolve=>release=resolve));
+ b.api.openNativeCamera(0);const receiving=b.selectNative([nativeFile()]);await flush();let left=false;const leaving=b.context.SPBU_BEFORE_LOGOUT().then(result=>{left=true;return result});await flush();assert.equal(left,false);
+ release();await receiving;assert.equal(await leaving,true);const saved=b.storage.get(b.api.db+':state').sessions[0].evidence[ELEMENT][0];assert.ok(saved.data);assert.equal(saved.aiReview.status,'queued');assert.equal(b.api.cloud.paused,true);
 });

@@ -1,6 +1,26 @@
-# Siap Audit SPBU v16.0.1 — penyimpanan pusat dan navigasi
+# Siap Audit SPBU v16.0.3 — pengambilan foto melalui kamera HP
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, dan foto disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
+
+## Perbaikan v16.0.3
+
+- Tombol utama **Ambil satu foto** meminta antarmuka kamera HP melalui input file dengan `capture="environment"`, satu foto setiap kali. Zoom, ketuk fokus, dan kontrol lain mengikuti antarmuka yang disediakan HP/browser; aplikasi tidak menjamin fitur tertentu tersedia di semua perangkat.
+- Tombol **Kamera web** mempertahankan kamera langsung di halaman sebagai alternatif. Mode ini memakai getUserMedia dan tidak menyediakan pemilihan galeri.
+- Aplikasi tidak menambahkan tombol galeri. Namun `capture` adalah permintaan kepada browser, bukan penguncian sumber foto. Beberapa perangkat dapat menawarkan berkas yang sudah ada, dan komputer umumnya membuka pemilih berkas. Bila wajib foto langsung tanpa galeri, gunakan Kamera web. Tidak ada pemeriksaan metadata yang mengklaim dapat membuktikan foto pasti baru diambil.
+- Setelah foto kamera diterima, aplikasi mengubahnya ke JPEG dengan sisi terpanjang maksimal 1800 piksel dan menjaga ukuran agar dapat diterima API. Berkas masukan maksimal 40 MiB; JPEG, PNG, WebP, HEIC/HEIF dapat diproses jika browser mampu membacanya. Foto yang gagal dibaca diarahkan untuk diambil ulang menggunakan Kamera web.
+- Foto diteruskan otomatis ke antrean AI. Tombol kamera berikutnya tidak menunggu pemeriksaan AI selesai. Membatalkan kamera tidak menghapus foto lama.
+- Input kamera berada di luar bagian halaman yang sering dirender ulang. Foto tetap masuk ke audit/elemen asal jika pengguna berpindah halaman ketika gambar sedang diproses.
+- Sebelum logout, gambar yang sudah diterima dan sedang disiapkan disimpan ke perangkat terlebih dahulu. Pemeriksaan AI tidak perlu ditunggu; antrean dapat dilanjutkan setelah masuk kembali.
+
+## Perbaikan v16.0.2
+
+- Keluar tidak menyalin ulang semua data/foto ke penyimpanan HP bila perubahan terbaru sudah tersimpan. Penulisan lokal yang masih berjalan dipakai kembali; perubahan yang lebih baru tetap disimpan sebelum logout.
+- Kejadian perubahan fokus pada catatan dengan isi yang sama tidak memicu penulisan ulang.
+- Logout hanya menunggu penyimpanan lokal terakhir bila diperlukan, lalu permintaan menghapus cookie sesi. Proses tidak menunggu hasil AI atau seluruh unggahan foto. Foto yang belum terkirim tetap di perangkat asal dan dilanjutkan ketika masuk kembali dengan akun yang sama.
+- Server menghapus cookie sesi tanpa membaca daftar akun petugas. Pemeriksaan POST dan Origin tetap berlaku; operasi audit/foto tetap memerlukan akun yang berhak.
+- Halaman login baru tidak mengirim permintaan verifikasi sesi tambahan. Halaman yang dipulihkan dari cache riwayat tetap memeriksa sesi.
+- Jika IndexedDB gagal sementara, penyimpanan lokal cadangan terbaru diutamakan saat masuk kembali agar catatan tidak tertutupi salinan IndexedDB yang lebih lama.
+- Koneksi ke hosting tetap diperlukan untuk mengakhiri sesi. Tidak ada janji waktu tetap; latensi Netlify dan jaringan HP belum diukur dalam akun produksi pengguna.
 
 ## Perbaikan v16.0.1
 
@@ -45,7 +65,7 @@ Nama pengguna memakai 3–40 karakter: huruf kecil, angka, titik, garis bawah, a
 | Functions directory | netlify/functions, relatif terhadap Base directory |
 | Node.js | 22 |
 
-Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.0.1. Untuk pemasangan di root repository, Base directory boleh kosong.
+Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.0.3. Untuk pemasangan di root repository, Base directory boleh kosong.
 
 ## Penyimpanan dan akses
 
@@ -84,7 +104,7 @@ npm run validate
 npm run check:bundle
 ```
 
-Pengujian otomatis lulus: 32 skenario inti dan 67 skenario integrasi, total **99 skenario**. Mencakup password 8 karakter, izin lintas SPBU, penyimpanan terpisah, perangkat kedua, offline, respons terputus, konflik, migrasi, pemulihan, cache, dan escaping profil. Pengujian memakai penyimpanan tiruan serta respons Gemini tiruan; paket Function beserta SDK dan skema berhasil dibundel. Klik Keluar dan Kembali diuji pada Chrome dengan server serta akun uji sementara. Akses akun Netlify produksi, Blobs nyata, tombol fisik HP, kamera HP, serta kuota Gemini nyata perlu diperiksa setelah deploy. Paket pembaruan ini belum terbit ke akun Netlify pengguna.
+Pengujian otomatis lulus: 32 skenario inti dan 83 skenario integrasi, total **115 skenario**. Mencakup password 8 karakter, izin lintas SPBU, penyimpanan terpisah, perangkat kedua, offline, respons terputus, konflik, migrasi, pemulihan, cache, dan escaping profil. Pengujian memakai penyimpanan tiruan serta respons Gemini tiruan; paket Function beserta SDK dan skema berhasil dibundel. Alur Keluar dan Kembali v16.0.1 sebelumnya diuji pada Chrome dengan server dan akun uji sementara. Optimasi v16.0.2 diperiksa dengan pengujian otomatis yang memastikan tidak ada penulisan ulang yang tidak perlu, perubahan saat penulisan berlangsung tetap tersimpan, dan logout tidak membaca penyimpanan akun. Alur input foto v16.0.3 juga diperiksa di Chrome desktop menggunakan dua PNG contoh yang dikonversi menjadi JPEG, penyimpanan server tiruan, dan respons AI tiruan; foto kedua dapat ditambahkan saat pemeriksaan pertama berlangsung, lalu kedua foto berstatus AI selesai dan tersimpan. Pembukaan kamera fisik HP, zoom/fokusnya, Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Paket pembaruan ini belum terbit ke akun Netlify pengguna.
 
 ## Dokumentasi resmi
 
@@ -93,3 +113,5 @@ Pengujian otomatis lulus: 32 skenario inti dan 67 skenario integrasi, total **99
 - https://docs.netlify.com/build/functions/configuration/
 - https://www.netlify.com/pricing/
 - https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository
+
+Dokumentasi kamera browser: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture

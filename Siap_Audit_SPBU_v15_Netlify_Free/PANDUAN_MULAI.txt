@@ -1,10 +1,29 @@
-# Panduan pembaruan v16.0.1 — Siap Audit SPBU
+# Panduan pembaruan v16.0.3 — Siap Audit SPBU
 
 Untuk aplikasi yang sudah berada di https://siap-audit-spbu.netlify.app/. Gunakan proyek Netlify dan repository GitHub yang sama agar akun lama serta penyimpanan server tetap tersedia.
 
+## Kamera HP — pembaruan v16.0.3
+
+1. Perbarui folder yang sama di GitHub, tunggu Netlify Published, lalu muat ulang aplikasi satu kali. Tidak perlu mengganti environment variables.
+2. Buka audit → Checklist → pilih elemen → **Ambil satu foto**.
+3. Browser akan meminta kamera belakang HP. Gunakan zoom dan ketuk fokus jika disediakan pada antarmuka kamera tersebut.
+4. Setelah memotret, pilih **Gunakan foto / OK / Selesai** sesuai HP Anda. Foto akan disiapkan, disimpan, dan diperiksa AI otomatis.
+5. Tekan **Ambil satu foto** lagi untuk foto berikutnya. Tidak perlu menunggu AI menyelesaikan foto sebelumnya.
+6. Jika kamera HP tidak terbuka atau foto tidak dapat dibaca, gunakan **Kamera web**.
+
+Pada sebagian browser, pilihan galeri/berkas masih dapat muncul karena pengaturan antarmuka berasal dari HP/browser. Aplikasi web tidak dapat menguncinya 100%. Gunakan **Kamera web** bila pengambilan langsung tanpa galeri diwajibkan. Komputer biasanya membuka pemilih berkas pada tombol utama. Zoom/fokus fisik belum diuji pada HP Anda.
+
+Pembatalan kamera tidak menambahkan foto dan tidak menghapus foto sebelumnya. Jika foto sudah diterima lalu Anda menekan Keluar, aplikasi menyelesaikan penyimpanan lokalnya terlebih dahulu; hasil AI dapat dilanjutkan setelah masuk kembali.
+
+## Optimasi Keluar v16.0.2
+
+Data yang sudah tersimpan di HP tidak ditulis ulang ketika Keluar ditekan. Jika masih ada perubahan yang belum tersimpan, aplikasi mengamankan perubahan terakhir terlebih dahulu. Tidak perlu menunggu AI atau seluruh foto selesai diunggah untuk logout; data yang belum terkirim tetap berada di HP asal. Gunakan akun yang sama pada perangkat itu untuk melanjutkan pengiriman.
+
+Koneksi ke server tetap dibutuhkan untuk menghapus sesi. Waktu sebenarnya bergantung pada jaringan dan hosting; optimasi ini belum diukur pada Netlify produksi Anda.
+
 ## Perbaikan Keluar dan tombol Kembali
 
-Paket ini sudah berisi perbaikan v16.0.1. Perbarui folder yang sama melalui GitHub dan tunggu Netlify Published. Tidak perlu membuat proyek baru atau mengubah environment variables.
+Paket ini sudah berisi perbaikan v16.0.3. Perbarui folder yang sama melalui GitHub dan tunggu Netlify Published. Tidak perlu membuat proyek baru atau mengubah environment variables.
 
 Setelah Published:
 
@@ -23,13 +42,13 @@ Sesi berlaku 12 jam. Berakhirnya masa sesi, perubahan password, atau pencabutan 
 
 ## 2. Ekstrak dan unggah pembaruan ke GitHub
 
-1. Unduh **Siap_Audit_SPBU_v16_0_1_Perbaikan_Login.zip** lalu ekstrak.
+1. Unduh **Siap_Audit_SPBU_v16_0_3_Kamera_HP.zip** lalu ekstrak.
 2. Di dalam hasil ekstrak ada folder **Siap_Audit_SPBU_v15_Netlify_Free**. Nama folder tetap sama agar cocok dengan hosting yang sudah terpasang; program di dalamnya sudah v16.
 3. Buka https://github.com/group223/siap-audit-spbu pada branch **main**.
 4. Pastikan berada di halaman utama repository, lalu pilih **Add file → Upload files**.
 5. Seret **folder Siap_Audit_SPBU_v15_Netlify_Free beserta seluruh isinya** dari hasil ekstrak ke halaman unggah. Jangan unggah berkas ZIP. Jangan masuk ke folder repository lalu menyeret folder yang sama, karena akan membuat folder bertingkat.
 6. Klik **Commit changes**. Jika muncul konfirmasi mengganti berkas, gunakan berkas baru. Selesaikan commit ke main.
-7. Buka folder tersebut di GitHub: package.json harus menunjukkan versi **16.0.1**, dan server/ harus berisi **audits.mjs** serta **audit-schema.json**.
+7. Buka folder tersebut di GitHub: package.json harus menunjukkan versi **16.0.3**, dan server/ harus berisi **audits.mjs** serta **audit-schema.json**.
 
 Paket tidak berisi password atau API key operasional. Tidak perlu mengubah tiga variabel Netlify yang sudah berhasil dipakai.
 

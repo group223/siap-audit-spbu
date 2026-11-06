@@ -31,7 +31,7 @@ function browserSession(h,mode,cookie){
  });context.window=context;new vm.Script(script).runInContext(context);
  return {context,form,button,redirects,calls,windows,get cookie(){return cookie},get cleared(){return cleared},override:fn=>override=fn,
   async submit(){let prevented=false;await handlers.get('submit')({target:form,preventDefault(){prevented=true}});assert.ok(prevented);},
-  async pageshow(){windows.get('pageshow')({persisted:true});await new Promise(setImmediate);await new Promise(setImmediate);}
+  async pageshow(persisted=true){windows.get('pageshow')({persisted});await new Promise(setImmediate);await new Promise(setImmediate);}
  };
 }
 
@@ -80,4 +80,21 @@ test('a cached app page after logout returns to login; a cached login page stays
 });
 test('browser history restoration with a valid cookie does not issue a logout request',async()=>{
  const h=harness(),owner=await h.login(),b=browserSession(h,'app',owner.cookie);await b.pageshow();assert.equal(b.redirects.length,0);assert.equal(b.cookie,owner.cookie);assert.equal(b.calls.length,1);assert.equal(b.calls[0].url,'/auth/session');
+});
+
+test('staff logout clears the cookie without waiting for the account store',async()=>{
+ const h=harness(),owner=await h.login(),staff=await h.staff(owner.cookie,'staff1');let reads=0;
+ h.accounts.getWithMetadata=async()=>{reads++;throw new Error('Account store unavailable')};
+ const response=await h.request('/auth/logout',{cookie:staff.cookie,method:'POST'});
+ assert.equal(response.status,200);assert.equal((await response.json()).ok,true);assert.match(response.headers.get('set-cookie'),/Max-Age=0/);assert.equal(reads,0);
+});
+test('logout retains method and origin checks even if account configuration is missing',async()=>{
+ const h=harness();h.env.ADMIN_PASSWORD='';
+ assert.equal((await h.request('/auth/logout')).status,405);
+ const cross=await h.request('/auth/logout',{method:'POST',origin:'https://outside.example'});assert.equal(cross.status,403);assert.equal(cross.headers.get('set-cookie'),null);
+ const same=await h.request('/auth/logout',{method:'POST'});assert.equal(same.status,200);assert.match(same.headers.get('set-cookie'),/Max-Age=0/);
+});
+test('a fresh login or app document does not make a redundant session request',async()=>{
+ const h=harness(),owner=await h.login();
+ for(const mode of ['login','app']){const b=browserSession(h,mode,owner.cookie);await b.pageshow(false);assert.equal(b.calls.length,0);assert.equal(b.redirects.length,0);}
 });

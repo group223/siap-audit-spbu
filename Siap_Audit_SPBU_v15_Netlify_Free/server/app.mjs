@@ -71,6 +71,14 @@ export function createApp({ getEnv = () => process.env, getStore, getAuditStore 
       if (PUBLIC_ASSETS.has(path) && ["GET", "HEAD"].includes(request.method)) {
         return secure(await core.fetch(request, env, {}));
       }
+      // Clearing this browser's cookie needs no account-store lookup. Keep the
+      // method and same-origin checks even when account storage is unavailable.
+      if (path === "/auth/logout") {
+        if (request.method !== "POST") return secure(json({ error: "Gunakan tombol Keluar.", code: "METHOD_NOT_ALLOWED" }, 405));
+        if (request.headers.get("origin") !== url.origin) return secure(json({ error: "Permintaan berasal dari situs lain.", code: "INVALID_ORIGIN", retryable: false }, 403));
+        const headers = { "set-cookie": clearSessionCookie(), "clear-site-data": '"cache"' };
+        return secure(api ? json({ ok: true }, 200, headers) : redirect("/auth/login?notice=logged-out", headers));
+      }
       if (!cfg) {
         return secure(api
           ? json({ error: "Akun pengelola belum dikonfigurasi. Hubungi pengelola aplikasi.", code: "AUTH_NOT_CONFIGURED", retryable: false }, 503)
@@ -92,11 +100,6 @@ export function createApp({ getEnv = () => process.env, getStore, getAuditStore 
       user = await auth.currentUser(request);
       if (path === "/auth/login" && ["GET", "HEAD"].includes(request.method)) {
         return secure(user ? redirect("/") : html(loginPage({ message: url.searchParams.get("notice") === "logged-out" ? "Anda sudah keluar. Masuk kembali untuk melanjutkan." : "" })));
-      }
-      if (path === "/auth/logout") {
-        if (request.method !== "POST") return secure(json({ error: "Gunakan tombol Keluar.", code: "METHOD_NOT_ALLOWED" }, 405));
-        const headers = { "set-cookie": clearSessionCookie(), "clear-site-data": '"cache"' };
-        return secure(api ? json({ ok: true }, 200, headers) : redirect("/auth/login?notice=logged-out", headers));
       }
       if (!user) {
         return secure(api || request.method === "POST"
