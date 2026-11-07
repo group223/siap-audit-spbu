@@ -2,6 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { harness, audit, path, save, ELEMENT, JPEG } from "./cloud-helpers.mjs";
 
+test("photo sources are retained and must refer to a real criterion in their own element", async () => {
+  const h=harness(),owner=await h.login(),a=audit();await save(h,owner.cookie,a);
+  const uploaded=await h.request(path(a)+"/photos/criterion-photo",{cookie:owner.cookie,bytes:JPEG,headers:{"content-type":"image/jpeg"}});
+  assert.equal(uploaded.status,200);const ref=await uploaded.json();
+  a.evidence[ELEMENT]=[{id:"criterion-photo",type:"image/jpeg",cloudHash:ref.cloudHash,sourceCode:"1.1.1.a"}];
+  assert.equal((await save(h,owner.cookie,a,1)).status,200);
+  const saved=await (await h.request(path(a),{cookie:owner.cookie})).json();assert.equal(saved.audit.evidence[ELEMENT][0].sourceCode,"1.1.1.a");
+  for(const sourceCode of ["unknown","3.1.3.a","__proto__"]){a.evidence[ELEMENT][0].sourceCode=sourceCode;const bad=await save(h,owner.cookie,a,2);assert.equal(bad.status,400);assert.equal((await bad.json()).code,"INVALID_PHOTO_SOURCE");}
+  a.evidence[ELEMENT][0].sourceCode="";assert.equal((await save(h,owner.cookie,a,2)).status,200);
+  const legacy=await (await h.request(path(a),{cookie:owner.cookie})).json();assert.equal(legacy.audit.evidence[ELEMENT][0].sourceCode,undefined);
+});
+
 test("eight numeric characters including a leading zero work for admin; seven fail closed", async () => {
   const h = harness(); assert.equal((await h.login("BAPAL6", "01234567")).response.status, 200);
   h.env.ADMIN_PASSWORD = "1234567";

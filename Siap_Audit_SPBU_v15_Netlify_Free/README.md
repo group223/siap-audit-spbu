@@ -1,6 +1,15 @@
-# Siap Audit SPBU v16.0.3 — pengambilan foto melalui kamera HP
+# Siap Audit SPBU v16.0.4 — tambah foto dari setiap butir penilaian
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, dan foto disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
+
+## Perbaikan v16.0.4
+
+- Setiap halaman subelemen/butir penilaian sekarang memiliki tombol **Tambah foto** dan **Kamera web**. Petugas dapat membuka butir, mengambil foto, lalu melanjutkan ke butir lain.
+- Foto menyimpan kode asalnya, misalnya **3.1.3.a**, dan ditampilkan di halaman butir tersebut. Kaitan ini ikut tersimpan di server, cadangan JSON, dan perangkat kedua. Server menolak kode yang tidak ada atau berada pada elemen lain.
+- AI menerima kode butir yang sedang diperiksa sebagai fokus, lalu tetap memeriksa butir lain pada elemen yang sama. Jika satu foto relevan untuk beberapa butir, hasilnya dapat dipakai bersama tanpa mengunggah salinan foto tersebut.
+- Foto umum elemen dan foto dari versi sebelumnya tetap tersedia. Foto yang diperiksa AI sebagai relevan untuk suatu butir juga ditampilkan pada halaman butir tersebut. Nilai A–F tetap dipilih petugas.
+- Pengambilan foto tidak mengembalikan petugas ke daftar elemen. Foto tetap ditautkan ke butir asal meskipun petugas berpindah halaman saat gambar diproses, dan foto berikutnya dapat diambil saat AI masih memeriksa.
+- Tombol umum pada halaman Elemen audit tetap dapat digunakan. Semua foto elemen dapat dilihat melalui **Lihat semua foto elemen** pada halaman butir.
 
 ## Perbaikan v16.0.3
 
@@ -65,7 +74,7 @@ Nama pengguna memakai 3–40 karakter: huruf kecil, angka, titik, garis bawah, a
 | Functions directory | netlify/functions, relatif terhadap Base directory |
 | Node.js | 22 |
 
-Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.0.3. Untuk pemasangan di root repository, Base directory boleh kosong.
+Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.0.4. Untuk pemasangan di root repository, Base directory boleh kosong.
 
 ## Penyimpanan dan akses
 
@@ -104,7 +113,7 @@ npm run validate
 npm run check:bundle
 ```
 
-Pengujian otomatis lulus: 32 skenario inti dan 83 skenario integrasi, total **115 skenario**. Mencakup password 8 karakter, izin lintas SPBU, penyimpanan terpisah, perangkat kedua, offline, respons terputus, konflik, migrasi, pemulihan, cache, dan escaping profil. Pengujian memakai penyimpanan tiruan serta respons Gemini tiruan; paket Function beserta SDK dan skema berhasil dibundel. Alur Keluar dan Kembali v16.0.1 sebelumnya diuji pada Chrome dengan server dan akun uji sementara. Optimasi v16.0.2 diperiksa dengan pengujian otomatis yang memastikan tidak ada penulisan ulang yang tidak perlu, perubahan saat penulisan berlangsung tetap tersimpan, dan logout tidak membaca penyimpanan akun. Alur input foto v16.0.3 juga diperiksa di Chrome desktop menggunakan dua PNG contoh yang dikonversi menjadi JPEG, penyimpanan server tiruan, dan respons AI tiruan; foto kedua dapat ditambahkan saat pemeriksaan pertama berlangsung, lalu kedua foto berstatus AI selesai dan tersimpan. Pembukaan kamera fisik HP, zoom/fokusnya, Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Paket pembaruan ini belum terbit ke akun Netlify pengguna.
+Pengujian otomatis lulus: 32 skenario inti dan 90 skenario integrasi, total **122 skenario**. Mencakup password 8 karakter, izin lintas SPBU, penyimpanan terpisah, perangkat kedua, offline, respons terputus, konflik, migrasi, pemulihan, cache, dan escaping profil. Pengujian memakai penyimpanan tiruan serta respons Gemini tiruan; paket Function beserta SDK dan skema berhasil dibundel. Alur Keluar dan Kembali v16.0.1 sebelumnya diuji pada Chrome dengan server dan akun uji sementara. Optimasi v16.0.2 diperiksa dengan pengujian otomatis yang memastikan tidak ada penulisan ulang yang tidak perlu, perubahan saat penulisan berlangsung tetap tersimpan, dan logout tidak membaca penyimpanan akun. Alur input foto v16.0.3 juga diperiksa di Chrome desktop menggunakan dua PNG contoh yang dikonversi menjadi JPEG, penyimpanan server tiruan, dan respons AI tiruan; foto kedua dapat ditambahkan saat pemeriksaan pertama berlangsung, lalu kedua foto berstatus AI selesai dan tersimpan. Pembukaan kamera fisik HP, zoom/fokusnya, Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Perubahan v16.0.4 diuji dengan alur tombol foto pada halaman butir, dua butir berbeda saat AI tertunda, perpindahan butir saat foto diproses, penggunaan bersama satu foto, sinkronisasi perangkat kedua, cadangan, validasi kode foto, dan kamera web. Paket pembaruan ini belum terbit ke akun Netlify pengguna.
 
 ## Dokumentasi resmi
 

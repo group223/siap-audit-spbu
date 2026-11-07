@@ -1,6 +1,18 @@
-# Panduan pembaruan v16.0.3 — Siap Audit SPBU
+# Panduan pembaruan v16.0.4 — Siap Audit SPBU
 
 Untuk aplikasi yang sudah berada di https://siap-audit-spbu.netlify.app/. Gunakan proyek Netlify dan repository GitHub yang sama agar akun lama serta penyimpanan server tetap tersedia.
+
+## Tambah foto pada setiap subelemen/butir — v16.0.4
+
+1. Ekstrak ZIP ini, lalu perbarui isi folder **Siap_Audit_SPBU_v15_Netlify_Free** yang sudah ada di GitHub. Tunggu Netlify **Published**, lalu muat ulang aplikasi. Gunakan proyek yang sama.
+2. Buka audit → Checklist → pilih elemen → ketuk subelemen/butir yang akan diperiksa, misalnya **3.1.3.a**.
+3. Di halaman butir, tekan **Tambah foto**. Foto otomatis ditandai untuk kode butir tersebut, disimpan, dan masuk antrean AI.
+4. Anda tetap berada pada halaman butir itu setelah memotret. Anda bisa menambah foto atau berpindah ke butir berikutnya saat AI masih memeriksa.
+5. Satu foto dapat mendukung beberapa butir dalam elemen yang sama bila AI menemukan bukti terkait. Tidak perlu mengunggah salinan foto hanya untuk mendukung butir lain.
+6. Tombol **Lihat semua foto elemen** membuka kumpulan foto elemen. Foto umum dari versi sebelumnya tetap tersedia; tidak perlu menghapus data browser atau membuat audit ulang.
+7. Nilai A–F tetap dipilih petugas setelah meninjau foto dan hasil AI.
+
+Tidak perlu mengganti nama folder, Base directory, publish directory, maupun environment variables. Pengujian otomatis memakai penyimpanan dan respons AI tiruan; kamera fisik HP serta layanan produksi perlu diperiksa setelah pembaruan diterapkan.
 
 ## Kamera HP — pembaruan v16.0.3
 
@@ -23,7 +35,7 @@ Koneksi ke server tetap dibutuhkan untuk menghapus sesi. Waktu sebenarnya bergan
 
 ## Perbaikan Keluar dan tombol Kembali
 
-Paket ini sudah berisi perbaikan v16.0.3. Perbarui folder yang sama melalui GitHub dan tunggu Netlify Published. Tidak perlu membuat proyek baru atau mengubah environment variables.
+Paket ini sudah berisi perbaikan v16.0.4. Perbarui folder yang sama melalui GitHub dan tunggu Netlify Published. Tidak perlu membuat proyek baru atau mengubah environment variables.
 
 Setelah Published:
 
@@ -48,7 +60,7 @@ Sesi berlaku 12 jam. Berakhirnya masa sesi, perubahan password, atau pencabutan 
 4. Pastikan berada di halaman utama repository, lalu pilih **Add file → Upload files**.
 5. Seret **folder Siap_Audit_SPBU_v15_Netlify_Free beserta seluruh isinya** dari hasil ekstrak ke halaman unggah. Jangan unggah berkas ZIP. Jangan masuk ke folder repository lalu menyeret folder yang sama, karena akan membuat folder bertingkat.
 6. Klik **Commit changes**. Jika muncul konfirmasi mengganti berkas, gunakan berkas baru. Selesaikan commit ke main.
-7. Buka folder tersebut di GitHub: package.json harus menunjukkan versi **16.0.3**, dan server/ harus berisi **audits.mjs** serta **audit-schema.json**.
+7. Buka folder tersebut di GitHub: package.json harus menunjukkan versi **16.0.4**, dan server/ harus berisi **audits.mjs** serta **audit-schema.json**.
 
 Paket tidak berisi password atau API key operasional. Tidak perlu mengubah tiga variabel Netlify yang sudah berhasil dipakai.
 

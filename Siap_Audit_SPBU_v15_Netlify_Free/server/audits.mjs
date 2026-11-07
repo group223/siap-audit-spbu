@@ -63,7 +63,9 @@ function sanitize(input, station, auditID) {
       if (photos.has(photoID)) throw new AuthError("Identitas foto terduplikasi.");
       photos.add(photoID);
       if (photos.size > 600 || !HASH.test(photo.cloudHash || "") || !TYPES.has(photo.type)) throw new AuthError("Foto belum tersimpan di server atau jenis foto tidak didukung.", 400, "PHOTO_NOT_UPLOADED");
-      return { id: photoID, name: text(photo.name, 160), type: photo.type, cloudHash: photo.cloudHash, uploadedAt: text(photo.uploadedAt, 50), ...(photo.aiReview ? { aiReview: cleanJSON(photo.aiReview) } : {}) };
+      const sourceCode = photo.sourceCode == null || photo.sourceCode === "" ? "" : String(photo.sourceCode);
+      if (sourceCode && (!Object.hasOwn(schema.criterionElements, sourceCode) || schema.criterionElements[sourceCode] !== element)) throw new AuthError("Butir tujuan foto tidak sesuai dengan elemen.", 400, "INVALID_PHOTO_SOURCE");
+      return { id: photoID, name: text(photo.name, 160), type: photo.type, cloudHash: photo.cloudHash, uploadedAt: text(photo.uploadedAt, 50), ...(sourceCode ? { sourceCode } : {}), ...(photo.aiReview ? { aiReview: cleanJSON(photo.aiReview) } : {}) };
     });
   }
   const aiEvidence = cleanJSON(input.aiEvidence || {});

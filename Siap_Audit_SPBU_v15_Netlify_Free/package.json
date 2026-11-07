@@ -1,6 +1,6 @@
 {
   "name": "siap-audit-spbu-netlify",
-  "version": "16.0.3",
+  "version": "16.0.4",
   "private": true,
   "type": "module",
   "engines": {
