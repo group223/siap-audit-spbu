@@ -5,7 +5,7 @@ const html = await readFile(new URL('../frontend/index.html', import.meta.url), 
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>(.*?)<\/script>/gs)].map(x => x[1]);
 const hook = 'load().then(async()=>{await startNavigation();render();pumpPhotoReviews()});';
 assert.ok(scripts.some(s => s.includes(hook)), 'test harness must replace the actual application startup');
-const expose = 'globalThis.auditTest={getState:()=>S,getUI:()=>ui,setState:v=>{S=v;ui.sid=v.sessions[0]?.id||null;ui.view="sess";ui.open[0]=true},load,persistState,migratePhotoReviewState,enqueuePhotoReview,pumpPhotoReviews,elementEvidenceHtml,render,openCamera};';
+const expose = 'globalThis.auditTest={getState:()=>S,getUI:()=>ui,setState:v=>{S=v;ui.sid=v.sessions[0]?.id||null;ui.view="sess";ui.open[0]=true},load,persistState,migratePhotoReviewState,enqueuePhotoReview,pumpPhotoReviews,elementEvidenceHtml,render,openNativeCamera};';
 const flush = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };
 function harness({ store = new Map(), now = 1793608000000 } = {}) {
   let clock = now, timerId = 0, fetcher = async () => { throw new Error('Unexpected request'); };
@@ -78,15 +78,14 @@ let scenarios=0;
 {
   const h=harness();const a=h.photo('a'),b=h.photo('b');b.aiReview={status:'done',attempts:1};const state=h.state([a,b]);state.sessions[0].aiEvidence[h.el]={checkedAt:new Date().toISOString(),photoReviews:[{photoId:'b',photoIndex:2,results:[{code:h.seed[0].code,status:'terdukung',reason:'Bukti foto B.',photoNumbers:[2]}]}],results:[{code:h.seed[0].code,status:'terdukung',reason:'Bukti foto B.',photoNumbers:[2]}]};h.api.setState(state);h.fetch(async(_url,opts)=>success(opts,'ulang'));h.api.enqueuePhotoReview('s1',0,0);await flush();assert.equal(photos(h).length,2);assert.equal(photos(h)[0].aiReview.status,'retake');assert.equal(photos(h)[1].id,'b');const ai=h.api.getState().sessions[0].aiEvidence[h.el];assert.equal(ai.photoReviews[0].photoIndex,2);assert.equal(ai.results[0].photoNumbers[0],2);assert.match(ai.lastRejected.message,/buram/);scenarios++;
 }
-// New captures can queue while a review is in flight. Opening/refreshing the camera preserves its stream.
+// Native photo and video controls remain available while a review is in flight.
 {
-  const h=harness();h.api.setState(h.state([h.photo('a'),h.photo('b')]));const pending=[];let calls=0;h.fetch((_url,opts)=>{calls++;return new Promise(resolve=>pending.push(()=>resolve(success(opts))))});h.api.enqueuePhotoReview('s1',0,0);h.api.enqueuePhotoReview('s1',0,1);await flush();assert.equal(calls,1);assert.equal(h.api.getUI().analysisQueue.length,1);assert.equal(photos(h).length,2);assert.match(h.app.innerHTML,/data-act="open-camera" data-el="0">/);
-  await h.api.openCamera(0);const stream=h.video.srcObject;assert.ok(stream);h.api.render(true);assert.equal(h.video.srcObject,stream);
+  const h=harness();h.api.setState(h.state([h.photo('a'),h.photo('b')]));const pending=[];let calls=0;h.fetch((_url,opts)=>{calls++;return new Promise(resolve=>pending.push(()=>resolve(success(opts))))});h.api.enqueuePhotoReview('s1',0,0);h.api.enqueuePhotoReview('s1',0,1);await flush();assert.equal(calls,1);assert.equal(h.api.getUI().analysisQueue.length,1);assert.equal(photos(h).length,2);assert.match(h.app.innerHTML,/data-act="open-native-camera" data-el="0">/);assert.match(h.app.innerHTML,/data-act="open-native-video" data-el="0">/);
   pending.shift()();await flush();assert.equal(calls,2);pending.shift()();await flush();assert.ok(photos(h).every(p=>p.aiReview.status==='done'));scenarios++;
 }
 // Thumbnail taps open a preview without invoking deletion.
 {
-  const h=harness();const p=h.photo('a');p.aiReview={status:'failed',attempts:3,message:'Gemini sedang sibuk.'};h.api.setState(h.state([p]));h.api.render(true);h.click({act:'preview-evidence',el:'0',id:'a',i:'0'});assert.equal(photos(h).length,1);assert.equal(h.api.getUI().preview.photoId,'a');assert.match(h.app.innerHTML,/Pratinjau foto bukti/);scenarios++;
+  const h=harness();const p=h.photo('a');p.aiReview={status:'failed',attempts:3,message:'Gemini sedang sibuk.'};h.api.setState(h.state([p]));h.api.render(true);h.click({act:'preview-evidence',el:'0',id:'a',i:'0'});assert.equal(photos(h).length,1);assert.equal(h.api.getUI().preview.photoId,'a');assert.match(h.app.innerHTML,/Pratinjau bukti/);scenarios++;
 }
 // No additional AI code is sent or requested; an expired account session preserves the photo and asks for account sign-in.
 {
@@ -96,4 +95,4 @@ let scenarios=0;
   assert.equal(prompts,0);assert.equal(photos(h).length,1);assert.equal(photos(h)[0].aiReview.status,'failed');assert.equal(photos(h)[0].aiReview.code,'AUTH_REQUIRED');assert.match(photos(h)[0].aiReview.message,/akun/);
   assert.equal(h.removedStorage.length,1);assert.equal(h.removedStorage[0],'siap-audit-akses');scenarios++;
 }
-console.log(`Photo queue checks passed (${scenarios} scenarios: persistence, retry budget, offline, rejection, camera and preview).`);
+console.log(`Photo queue checks passed (${scenarios} scenarios: persistence, retry budget, offline, rejection, native capture and preview).`);

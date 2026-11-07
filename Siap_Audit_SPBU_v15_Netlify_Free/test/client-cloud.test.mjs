@@ -8,7 +8,7 @@ import { harness, audit, path, ELEMENT, JPEG, ORIGIN } from "./cloud-helpers.mjs
 const html = await readFile(new URL("../frontend/index.html", import.meta.url), "utf8");
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>(.*?)<\/script>/gs)].map(x => x[1]);
 const hook = "load().then(async()=>{await startNavigation();render();pumpPhotoReviews()});";
-const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,startNavigation,navigation,closeCamera,openNativeCamera,nativePhotoJPEG,nativePhotoTasks,render,itemPhotos,itemEvidenceHtml,seed,elements,openCamera,takeCameraPhoto};";
+const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,startNavigation,navigation,closeCamera,openNativeCamera,nativePhotoJPEG,nativePhotoTasks,render,itemPhotos,itemEvidenceHtml,seed,elements,openNativeVideo,nativeVideoDetails,pumpPhotoReviews,prepareReport,reportState,printReadyReport,downloadReportHTML,closeReport};";
 const flush = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };
 
 function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", role: "admin", stationNumber: "" }, storage = new Map()) {
@@ -19,12 +19,12 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
     pushState(state, _, url) { entries.splice(position + 1); entries.push({ state: structuredClone(state), url: String(url) }); position++; },
     back() { moveHistory(-1); }
   };
-  const nativeInput={id:'native-camera',files:[],value:'',clicks:0,click(){this.clicks++},matches:()=>false};
-  const app = { innerHTML: "", addEventListener() {} }, cloudStatus = { innerHTML: "" }, printdoc = { innerHTML: "" }, video = { srcObject: null, play: async () => {} }, toast = { textContent: "", classList: { add() {}, remove() {} } };
-  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : id === "camera-video" ? video : id === "native-camera" ? nativeInput : toast, querySelectorAll: () => [],
+  const nativeInput={id:'native-camera',files:[],value:'',clicks:0,click(){this.clicks++},matches:()=>false},videoInput={...nativeInput,id:'native-video'};
+  const app = { innerHTML: "", addEventListener() {} }, cloudStatus = { innerHTML: "" }, printdoc = { innerHTML: "",querySelectorAll:()=>[] }, reportTools={innerHTML:"",hidden:true}, bodyClasses=new Set(),video = { srcObject: null, play: async () => {} }, toast = { textContent: "", classList: { add() {}, remove() {} } };
+  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : id === "camera-video" ? video : id === "native-camera" ? nativeInput : id === "native-video" ? videoInput : id === "report-tools" ? reportTools : toast, querySelectorAll: () => [],
     addEventListener(name, fn) { const a = handlers.get(name) || []; a.push(fn); handlers.set(name, a); },
-    createElement: tag => tag === "a" ? { href: "", download: "", click() { downloads.push({ name: this.download, blob: objects.get(this.href) }); } } : { width: 0, height: 0, getContext() { return { drawImage: (...args) => canvasSizes.push({width:this.width,height:this.height,args:args.slice(1)}) }; }, toDataURL: () => "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64") },
-    body: { classList: { add() {}, remove() {} } }
+    createElement: tag => tag === "video" ? (()=>{const events=new Map();return{src:'',duration:4,videoWidth:1280,videoHeight:720,addEventListener(name,fn){const set=events.get(name)||new Set();set.add(fn);events.set(name,set)},removeEventListener(name,fn){events.get(name)?.delete(fn)},load(){if(!this.src)return;const f=objects.get(this.src);this.duration=f?.duration??4;this.videoWidth=f?.width??1280;this.videoHeight=f?.height??720;queueMicrotask(()=>{for(const fn of events.get(f?.decodeError?'error':'loadedmetadata')||[])fn()})},set currentTime(n){this._time=n;queueMicrotask(()=>{for(const fn of events.get('seeked')||[])fn()})},pause(){},removeAttribute(){this.src=''}}})() : tag === "a" ? { href: "", download: "", click() { downloads.push({ name: this.download, blob: objects.get(this.href) }); } } : { width: 0, height: 0, getContext() { return { drawImage: (...args) => canvasSizes.push({width:this.width,height:this.height,args:args.slice(1)}) }; }, toDataURL: () => "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64") },
+    body: { classList: { add(...names){for(const n of names)bodyClasses.add(n)},remove(...names){for(const n of names)bodyClasses.delete(n)},contains:n=>bodyClasses.has(n) } }
   };
   const indexedDB = { open(name) { const request = {}; queueMicrotask(() => {
     request.result = { objectStoreNames: { contains: () => true }, close() {}, createObjectStore() {}, transaction() {
@@ -58,7 +58,8 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
   const api = context.client;
   async function moveHistory(delta) { const at = position + delta; if (at < 0 || at >= entries.length) return; position = at; for (const fn of windowHandlers.get("popstate") || []) await fn({ state: entries[position].state }); await flush(); }
   async function selectNative(files) { nativeInput.files=files;const pending=(handlers.get('change')||[]).map(fn=>fn({target:nativeInput}));await Promise.all(pending);await flush(); }
-  return { api, storage, context, nativeInput, selectNative, canvasSizes, revokedURLs, video, app, holdImages:promise=>{imageGate=promise}, downloads, cloudStatus, toast, handlers, entries, writes: () => writeCount, holdWrites: promise => { writeGate = promise; }, position: () => position, back: () => moveHistory(-1), forward: () => moveHistory(1), override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
+  async function selectVideo(files){videoInput.files=files;await Promise.all((handlers.get('change')||[]).map(fn=>fn({target:videoInput})));await flush();}
+  return { api, storage, context, nativeInput, selectNative,videoInput,selectVideo,printdoc,reportTools,bodyClasses, canvasSizes, revokedURLs, video, app, holdImages:promise=>{imageGate=promise}, downloads, cloudStatus, toast, handlers, entries, writes: () => writeCount, holdWrites: promise => { writeGate = promise; }, position: () => position, back: () => moveHistory(-1), forward: () => moveHistory(1), override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
 }
 function photo(photoID = "p1") { return { id: photoID, name: "bukti.jpg", type: "image/jpeg", data: "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64"), uploadedAt: "2026-11-05T07:00:00Z", aiReview: { status: "done", attempts: 1 } }; }
 function state(a) { a.evidence[ELEMENT] = [photo()]; return { sessions: [a] }; }
@@ -192,10 +193,6 @@ test('phone Back closes a form on home and Forward can reopen that form',async()
  const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);await b.api.startNavigation();const ui=b.api.ui();ui.sheet=true;b.api.render();
  await b.back();assert.equal(ui.sheet,false);assert.equal(ui.view,'jadwal');await b.forward();assert.equal(ui.sheet,true);
 });
-test('phone Back closes the active camera and stops its stream before returning to the audit',async()=>{
- const h=harness(),{b,id}=await uploaded(h);await b.api.startNavigation();await b.api.openCloudAudit(id);let stopped=0;
- b.api.ui().camera={sid:id,ei:0,stream:{getTracks:()=>[{stop:()=>stopped++}]}};b.api.render();await b.back();assert.equal(b.api.ui().camera,null);assert.equal(stopped,1);assert.equal(b.api.ui().view,'sess');
-});
 test('typing a comment is saved before phone Back even without a blur event',async()=>{
  const h=harness(),{b,id}=await uploaded(h);await b.api.startNavigation();await b.api.openCloudAudit(id);const ui=b.api.ui();ui.view='item';ui.idx=0;b.api.render();
  const target={value:'Catatan sebelum menekan kembali',matches:selector=>selector==='[data-comment]'};
@@ -208,12 +205,6 @@ test('logout preparation keeps unsent changes on the device and pauses further s
  b.context.SPBU_LOGOUT_FAILED();assert.equal(b.api.cloud.paused,false);
 });
 
-test('closing a camera normally does not make phone Back reopen that camera',async()=>{
- const h=harness(),{b,id}=await uploaded(h);await b.api.startNavigation();await b.api.openCloudAudit(id);
- b.api.ui().camera={sid:id,ei:0,stream:{getTracks:()=>[{stop(){}}]}};b.api.render();
- b.api.closeCamera();b.api.render();await flush();assert.equal(b.api.ui().camera,null);assert.equal(b.api.ui().view,'sess');
- await b.back();assert.equal(b.api.ui().view,'jadwal');assert.equal(b.api.ui().camera,null);
-});
 
 test('logout does not rewrite already-saved data, including an unchanged blur event',async()=>{
  const h=harness(),{b,id}=await uploaded(h);await b.api.openCloudAudit(id);b.api.ui().idx=0;
@@ -330,12 +321,60 @@ test('a delayed native photo retains its original criterion when the user opens 
 });
 test('an invalid or cross-element criterion never opens either camera',async()=>{
  const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;
- for(const code of ['unknown','3.1.3.a']){b.api.openNativeCamera(0,code);await b.api.openCamera(0,code);}
- assert.equal(b.nativeInput.clicks,0);assert.ok(!b.api.ui().camera);assert.equal(Object.values(a.evidence).flat().length,0);
+ for(const code of ['unknown','3.1.3.a']){b.api.openNativeCamera(0,code);b.api.openNativeVideo(0,code);}
+ assert.equal(b.nativeInput.clicks,0);assert.equal(b.videoInput.clicks,0);assert.equal(Object.values(a.evidence).flat().length,0);
 });
-test('the web-camera fallback also attaches the criterion and keeps its detail page',async()=>{
- const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();let stopped=0;
- b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:0});b.context.navigator.mediaDevices={getUserMedia:async()=>({getTracks:()=>[{stop(){stopped++}}]})};Object.assign(b.video,{videoWidth:640,videoHeight:480});allowAI(b);
- await b.api.openCamera(0,'1.1.1.a');assert.equal(b.api.ui().camera.sourceCode,'1.1.1.a');b.api.takeCameraPhoto();await flush();
- assert.equal(a.evidence[ELEMENT][0].sourceCode,'1.1.1.a');assert.equal(stopped,1);assert.equal(b.api.ui().camera,null);assert.equal(b.api.ui().view,'item');
+
+function videoFile(extra={}){const bytes=Buffer.alloc(48,7);bytes.writeUInt32BE(24,0);bytes.write('ftypisom',4);return Object.assign(new Blob([bytes],{type:'video/mp4'}),{name:'video-kamera.mp4',...extra})}
+async function drain(b){for(let i=0;i<60;i++){await flush();if(!b.api.cloud.busy&&!b.api.nativePhotoTasks.size)return;}throw new Error('Client work did not settle');}
+
+test('the UI offers native photo and video capture without a web-camera choice',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:0});b.api.render();
+ assert.ok(!html.includes('data-act="open-camera"'));assert.ok(!html.includes('getUserMedia'));assert.match(b.app.innerHTML,/data-act="open-native-camera"/);assert.match(b.app.innerHTML,/data-act="open-native-video"[^>]+data-source="1\.1\.1\.a"/);assert.match(html,/<input id="native-video"[^>]+accept="video\/\*"[^>]+capture="environment"/);b.context.navigator.onLine=false;
+ const button={dataset:{act:'open-native-video',el:'0',source:'1.1.1.a'}};for(const fn of b.handlers.get('click')||[])await fn({target:{closest:()=>button}});assert.equal(b.videoInput.clicks,1);
+ await b.selectVideo([videoFile()]);const p=a.evidence[ELEMENT][0];assert.equal(p.type,'video/mp4');assert.equal(p.sourceCode,'1.1.1.a');assert.equal(p.duration,4);assert.ok(p.mediaBlob instanceof Blob);assert.equal(b.api.ui().view,'item');
+ assert.ok(b.storage.get(b.api.db+':state').sessions[0].evidence[ELEMENT][0].mediaBlob instanceof Blob);
+});
+
+test('toilet and wastafel guidance asks for the facility rather than an operator photo',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:b.api.seed.findIndex(x=>x.code==='3.1.3.a')});b.api.render();assert.ok(!b.app.innerHTML.includes('Foto petugas yang sedang bertugas'));assert.match(b.app.innerHTML,/Foto area atau peralatan/);
+});
+test('native video validates duration, size, formats and decoding before adding evidence',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;
+ for(const file of [videoFile({duration:61}),new Blob(['svg'],{type:'image/svg+xml'}),{size:13*1024*1024,type:'video/mp4'},videoFile({decodeError:true})]){b.api.openNativeVideo(0,'1.1.1.a');await b.selectVideo([file]);assert.equal(Object.values(a.evidence).flat().length,0);}
+ b.api.openNativeVideo(0);await b.selectVideo([videoFile(),videoFile()]);assert.equal(Object.values(a.evidence).flat().length,0);
+ b.api.openNativeVideo(0);for(const fn of b.handlers.get('cancel')||[])fn({target:b.videoInput});await b.selectVideo([]);assert.equal(Object.values(a.evidence).flat().length,0);
+});
+test('video sync stores chunks, AI sends only an authorized reference, and another device restores a portable backup',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:0});let request;
+ b.override(async(url,options,real)=>{if(url!=='/api/evidence/analyze')return real();request=JSON.parse(options.body);return Response.json({photoCheck:{status:'layak',reason:'Video terlihat'},results:request.criteria.map(x=>({code:x.code,status:'terdukung',reason:'Video relevan'}))});});
+ b.api.openNativeVideo(0,'1.1.1.a');await b.selectVideo([videoFile()]);await drain(b);await b.sync();await drain(b);const p=a.evidence[ELEMENT][0];assert.ok(p.cloudHash);assert.equal(p._linkedHash,p.cloudHash);assert.equal(p.aiReview.attempts,0);assert.equal(p.mediaBlob,undefined);
+ p.aiReview.nextAttemptAt=0;b.api.pumpPhotoReviews();await flush();await drain(b);await b.sync();assert.equal(p.aiReview.status,'done');assert.ok(request.videoRef);assert.equal(request.photos,undefined);assert.ok(JSON.stringify(request).length<50000);
+ const second=browser(h,owner.cookie);await second.load();await second.api.openCloudAudit(a.id);const opened=second.api.state().sessions.find(s=>s.id===a.id);assert.match(opened.evidence[ELEMENT][0].posterUrl,/\/videos\/.*\/poster$/);await second.api.downloadBackup([opened],'audit-video.json');const parsed=second.api.parseBackup(await second.downloads[0].blob.text(),[]);assert.match(parsed.sessions[0].evidence[ELEMENT][0].data,/^data:video\/mp4;base64,/);
+ const restored=browser(h,owner.cookie);await restored.api.restoreFile(second.downloads[0].blob);await drain(restored);await restored.sync();await drain(restored);assert.equal(restored.api.cloud.error,'');assert.ok(restored.api.state().sessions[0].evidence[ELEMENT][0].cloudHash);
+});
+test('video blobs never silently degrade to empty objects in the localStorage fallback',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();a.evidence[ELEMENT]=[{id:'v1',type:'video/mp4',mediaBlob:videoFile()}];b.api.setState({sessions:[a]});b.context.indexedDB.open=()=>{throw new Error('quota')};let fallback=false;b.context.localStorage.setItem=()=>{fallback=true};assert.equal(await b.api.persistState(),false);assert.equal(fallback,false);assert.ok(a.evidence[ELEMENT][0].mediaBlob instanceof Blob);
+});
+test('a report waits for all images and only prints from the ready button',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=state(audit()).sessions[0];b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'sess'});let prints=0,release;b.context.print=()=>prints++;b.holdImages(new Promise(resolve=>release=resolve));
+ const preparing=b.api.prepareReport(a,true);await flush();assert.equal(b.api.reportState.busy,true);assert.equal(b.api.reportState.ready,false);b.api.printReadyReport();assert.equal(prints,0);release();await preparing;assert.equal(b.api.reportState.ready,true);assert.match(b.printdoc.innerHTML,/<img src="data:image\/jpeg;base64,/);assert.match(b.printdoc.innerHTML,/1\.1\.1\.a/);
+ const button={dataset:{act:'report-print'}};for(const fn of b.handlers.get('click')||[])await fn({target:{closest:()=>button}});assert.equal(prints,1);assert.equal(b.bodyClasses.has('report-open'),true);
+});
+test('a failed report photo blocks printing and a retry recovers without changing the audit',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();a.evidence[ELEMENT]=[{id:'p1',type:'image/jpeg',remoteUrl:'/missing-photo'}];b.api.setState({sessions:[a]});b.api.ui().sid=a.id;b.override(()=>Promise.reject(new Error('Koneksi terputus')));await b.api.prepareReport(a,true);assert.equal(b.api.reportState.ready,false);assert.match(b.api.reportState.error,/Koneksi terputus/);
+ b.override(async()=>new Response(JPEG,{headers:{'content-type':'image/jpeg'}}));await b.api.prepareReport(a,true);assert.equal(b.api.reportState.ready,true);assert.equal(a.evidence[ELEMENT][0].data,undefined);
+});
+test('print readiness also waits for the generated document image load event',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=state(audit()).sessions[0];b.api.setState({sessions:[a]});b.api.ui().sid=a.id;const listeners=new Map(),image={complete:false,naturalWidth:0,addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:name=>listeners.delete(name)};b.printdoc.querySelectorAll=()=>[image];
+ const preparing=b.api.prepareReport(a,true);await flush();assert.equal(b.api.reportState.ready,false);image.naturalWidth=1400;listeners.get('load')();await preparing;assert.equal(b.api.reportState.ready,true);
+});
+test('the portable HTML report contains photos, escapes user text and has no authenticated media URLs',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=state(audit()).sessions[0];a.station='<img src=x onerror=alert(1)>';b.api.setState({sessions:[a]});b.api.ui().sid=a.id;await b.api.prepareReport(a,true);b.api.downloadReportHTML();const text=await b.downloads[0].blob.text();assert.match(b.downloads[0].blob.type,/text\/html/);assert.ok(text.includes('&lt;img'));assert.ok(!text.includes('<img src=x'));assert.match(text,/data:image\/jpeg;base64,/);assert.ok(!text.includes('/api/audits/'));assert.match(text,/Cetak \/ Simpan PDF/);
+});
+test('video report uses its poster and duration rather than embedding or downloading the whole recording',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();a.evidence[ELEMENT]=[{id:'v1',type:'video/mp4',duration:4,posterUrl:'/video/poster',remoteUrl:'/video/full',sourceCode:'1.1.1.a'}];b.api.setState({sessions:[a]});b.api.ui().sid=a.id;const reads=[];b.override(async(url)=>{reads.push(url);return new Response(JPEG,{headers:{'content-type':'image/jpeg'}})});await b.api.prepareReport(a,true);assert.equal(b.api.reportState.ready,true);assert.deepEqual(reads,['/video/poster']);assert.match(b.printdoc.innerHTML,/Video 1 • 0:04/);assert.ok(!b.printdoc.innerHTML.includes('<video'));
+});
+test('closing a report during image preparation cancels late rendering and phone Back returns to the audit',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=state(audit()).sessions[0];b.api.setState({sessions:[a]});await b.api.startNavigation();Object.assign(b.api.ui(),{sid:a.id,view:'sess'});b.api.render();let release;b.holdImages(new Promise(resolve=>release=resolve));const preparing=b.api.prepareReport(a,true);await flush();await b.back();assert.equal(b.api.ui().view,'sess');assert.ok(!b.api.ui().report);release();await preparing;assert.equal(b.printdoc.innerHTML,'');assert.equal(b.bodyClasses.has('report-open'),false);
 });

@@ -1,8 +1,34 @@
-# Siap Audit SPBU v16.0.4 — tambah foto dari setiap butir penilaian
+# Siap Audit SPBU v16.1.0 — laporan siap cetak dan video bukti
 
-Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, dan foto disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
+Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, foto, dan video disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
 
-## Perbaikan v16.0.4
+## Pembaruan v16.1.0
+
+### Cetak laporan dan foto
+
+- Tombol **Cetak laporan + foto/video** membuka pratinjau laporan. Aplikasi memuat gambar, membuat salinan gambar untuk cetak, dan menunggu gambar pada dokumen selesai dimuat sebelum mengaktifkan **Cetak / Simpan PDF**.
+- Dialog cetak dipanggil langsung dari tombol pada pratinjau yang sudah siap. Tidak ada pemanggilan cetak otomatis setelah pengunduhan panjang. Laporan tetap tersedia setelah dialog ditutup.
+- Jika bukti gagal dimuat, cetak diblokir dengan pesan dan tombol **Coba muat lagi**. Foto tidak dihilangkan diam-diam dari laporan. Saat offline, bukti yang hanya tersedia di server perlu koneksi internet untuk dicetak.
+- **Unduh laporan HTML** membuat laporan mandiri dengan gambar tertanam. Buka file itu di Chrome/Safari dan gunakan menu Cetak bila dialog di browser aplikasi tidak muncul.
+- Gambar memakai rasio asli dan tidak dipotong. Setiap bukti memiliki keterangan kode butir asal. Video dicetak sebagai cuplikan gambar dan durasi; rekaman lengkap diputar di aplikasi.
+- Pratinjau dan berkas laporan memakai salinan data, sehingga penyiapan laporan tidak menambah data foto ke penyimpanan audit atau mengubah penilaian.
+
+### Kamera HP dan video
+
+- Pilihan serta implementasi kamera web dihapus. Tombol **Tambah foto / Ambil satu foto** dan **Rekam video** meminta antarmuka kamera HP menggunakan input capture yang terpisah.
+- Video MP4, MOV, dan WebM didukung jika dapat diputar browser. Batas per video: **60 detik dan 12 MiB (ditampilkan sebagai 12 MB)**. Disarankan rekaman singkat dengan resolusi 720p. Batas ukuran/durasi ditampilkan pada halaman pengambilan bukti.
+- Rekaman ditautkan ke butir asal, memiliki sampul, dan dapat diputar dengan kontrol video. Petugas tetap dapat mengambil bukti lain atau berpindah halaman selama proses berjalan.
+- Video dikirim dalam bagian 1 MiB dan dilanjutkan dari bagian yang belum terkirim. Server memeriksa jenis berkas, ukuran, durasi, hash setiap bagian, dan hash seluruh rekaman sebelum video dapat direferensikan dalam audit.
+- Video dan sampul hanya tersedia bagi akun yang boleh mengakses audit tersebut. Pemutaran memakai respons streaming serta HTTP Range untuk seek, dengan akses terikat akun dan tanpa cache CDN bersama.
+- AI otomatis menunggu video selesai tersimpan dan ditautkan pada audit server. Permintaan dari browser hanya mengirim referensi video; server memeriksa izin SPBU lalu mengirim rekaman ke Gemini. Pemeriksaan foto sebelumnya tetap memakai alur yang sama. Nilai A–F tetap ditentukan petugas.
+- Rekaman yang belum terkirim disimpan sebagai Blob pada IndexedDB. Jika penyimpanan ini gagal, aplikasi tidak mengeklaim video sudah aman melalui JSON/localStorage yang akan membuang isi Blob. Biarkan aplikasi terbuka sampai status tersimpan di server; logout tidak melanjutkan bila penyimpanan lokal belum aman.
+- Cadangan JSON mencakup foto dan rekaman lengkap. Cadangan yang memuat video dapat berukuran besar. Akun, hak akses, namespace penyimpanan v16, dan audit lama tetap digunakan.
+
+**Kompatibilitas kamera:** capture merupakan permintaan kepada browser, bukan pengunci sumber rekaman. HP/browser tertentu tetap dapat menawarkan galeri; komputer biasanya membuka pemilih berkas. Zoom, fokus, format video, dan kontrol kamera mengikuti perangkat. Kamera fisik HP serta dialog cetak perangkat pengguna belum diuji di sesi ini.
+
+Bagian v16.0.x di bawah merupakan riwayat pengembangan. Pilihan kamera web yang disebut pada riwayat tersebut sudah dihapus pada v16.1.0.
+
+## Riwayat v16.0.4
 
 - Setiap halaman subelemen/butir penilaian sekarang memiliki tombol **Tambah foto** dan **Kamera web**. Petugas dapat membuka butir, mengambil foto, lalu melanjutkan ke butir lain.
 - Foto menyimpan kode asalnya, misalnya **3.1.3.a**, dan ditampilkan di halaman butir tersebut. Kaitan ini ikut tersimpan di server, cadangan JSON, dan perangkat kedua. Server menolak kode yang tidak ada atau berada pada elemen lain.
@@ -11,7 +37,7 @@ Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI
 - Pengambilan foto tidak mengembalikan petugas ke daftar elemen. Foto tetap ditautkan ke butir asal meskipun petugas berpindah halaman saat gambar diproses, dan foto berikutnya dapat diambil saat AI masih memeriksa.
 - Tombol umum pada halaman Elemen audit tetap dapat digunakan. Semua foto elemen dapat dilihat melalui **Lihat semua foto elemen** pada halaman butir.
 
-## Perbaikan v16.0.3
+## Riwayat v16.0.3
 
 - Tombol utama **Ambil satu foto** meminta antarmuka kamera HP melalui input file dengan `capture="environment"`, satu foto setiap kali. Zoom, ketuk fokus, dan kontrol lain mengikuti antarmuka yang disediakan HP/browser; aplikasi tidak menjamin fitur tertentu tersedia di semua perangkat.
 - Tombol **Kamera web** mempertahankan kamera langsung di halaman sebagai alternatif. Mode ini memakai getUserMedia dan tidak menyediakan pemilihan galeri.
@@ -74,7 +100,7 @@ Nama pengguna memakai 3–40 karakter: huruf kecil, angka, titik, garis bawah, a
 | Functions directory | netlify/functions, relatif terhadap Base directory |
 | Node.js | 22 |
 
-Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.0.4. Untuk pemasangan di root repository, Base directory boleh kosong.
+Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.1.0. Untuk pemasangan di root repository, Base directory boleh kosong.
 
 ## Penyimpanan dan akses
 
@@ -113,7 +139,9 @@ npm run validate
 npm run check:bundle
 ```
 
-Pengujian otomatis lulus: 32 skenario inti dan 90 skenario integrasi, total **122 skenario**. Mencakup password 8 karakter, izin lintas SPBU, penyimpanan terpisah, perangkat kedua, offline, respons terputus, konflik, migrasi, pemulihan, cache, dan escaping profil. Pengujian memakai penyimpanan tiruan serta respons Gemini tiruan; paket Function beserta SDK dan skema berhasil dibundel. Alur Keluar dan Kembali v16.0.1 sebelumnya diuji pada Chrome dengan server dan akun uji sementara. Optimasi v16.0.2 diperiksa dengan pengujian otomatis yang memastikan tidak ada penulisan ulang yang tidak perlu, perubahan saat penulisan berlangsung tetap tersimpan, dan logout tidak membaca penyimpanan akun. Alur input foto v16.0.3 juga diperiksa di Chrome desktop menggunakan dua PNG contoh yang dikonversi menjadi JPEG, penyimpanan server tiruan, dan respons AI tiruan; foto kedua dapat ditambahkan saat pemeriksaan pertama berlangsung, lalu kedua foto berstatus AI selesai dan tersimpan. Pembukaan kamera fisik HP, zoom/fokusnya, Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Perubahan v16.0.4 diuji dengan alur tombol foto pada halaman butir, dua butir berbeda saat AI tertunda, perpindahan butir saat foto diproses, penggunaan bersama satu foto, sinkronisasi perangkat kedua, cadangan, validasi kode foto, dan kamera web. Paket pembaruan ini belum terbit ke akun Netlify pengguna.
+Pengujian otomatis lulus: **140 skenario** (32 skenario inti dan 108 skenario integrasi). Mencakup alur lama, perizinan SPBU, unggahan video bertahap, kelanjutan unggahan, verifikasi hash, pemutaran Range, akses poster, AI melalui referensi video, cadangan/pemulihan rekaman, penyiapan gambar cetak, kegagalan jaringan, ekspor HTML, dan penutupan pratinjau saat memuat. Paket Function beserta SDK dan modul video berhasil dibundel.
+
+QA Chrome desktop menggunakan data contoh, penyimpanan tiruan, dan respons Gemini tiruan: video MP4 tiga detik berhasil diunggah melalui pemilih berkas, ditautkan ke butir asal, tersimpan, masuk antrean AI hingga selesai, dan diputar sampai akhir. Pratinjau laporan memuat satu foto dan dua sampul video, seluruh gambar selesai dimuat, tombol cetak aktif, dan unduhan HTML selesai. Browser uji tidak menampilkan dialog cetak sistem, sehingga hasil PDF fisik belum diverifikasi. Pembukaan kamera fisik HP, zoom/fokus, layanan Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Paket ini belum diterapkan ke akun Netlify pengguna.
 
 ## Dokumentasi resmi
 
@@ -124,3 +152,6 @@ Pengujian otomatis lulus: 32 skenario inti dan 90 skenario integrasi, total **12
 - https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository
 
 Dokumentasi kamera browser: https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture
+
+Dokumentasi video Gemini: https://ai.google.dev/gemini-api/docs/video-understanding
+Dokumentasi batas Function: https://docs.netlify.com/build/functions/configuration/

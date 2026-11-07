@@ -136,8 +136,15 @@ export function createApp({ getEnv = () => process.env, getStore, getAuditStore 
       if (path === "/api/evidence/analyze" && user.role !== "admin" && !user.stationNumber) throw new AuthError("Akun Anda belum ditugaskan ke SPBU. Hubungi admin.", 403, "STATION_REQUIRED");
       let forwarded = request;
       if (path === "/api/evidence/analyze" && request.method === "POST") {
-        const body = await limitedBody(request, 4 * 1024 * 1024);
-        forwarded = new Request(request.url, { method: "POST", headers: request.headers, body });
+        let body = await limitedBody(request, 4 * 1024 * 1024);
+        let input;
+        try { input = JSON.parse(new TextDecoder().decode(body)); } catch { throw new AuthError("Data pemeriksaan tidak valid."); }
+        if (input?.videoRef) {
+          const source = await auditService.videoForAI(user, input.videoRef, input.element);
+          body = new TextEncoder().encode(JSON.stringify({ ...input, videoRef: undefined, photos: [source] }));
+        }
+        const headers = new Headers(request.headers); headers.delete("content-length");
+        forwarded = new Request(request.url, { method: "POST", headers, body });
       }
       response = await core.fetch(forwarded, { GEMINI_API_KEY: env.GEMINI_API_KEY }, {});
       if ((response.headers.get("content-type") || "").includes("text/html") && response.ok) {
