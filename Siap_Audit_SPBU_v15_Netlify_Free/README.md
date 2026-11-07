@@ -1,12 +1,18 @@
-# Siap Audit SPBU v16.1.1 — satu kamera untuk foto dan video
+# Siap Audit SPBU v16.1.2 — tampilan ringkas
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, foto, dan video disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
 
-## Pembaruan v16.1.1
+## Pembaruan v16.1.2
+
+- Pada elemen dan butir, ketuk ikon kamera **+** dalam kotak garis putus untuk mengambil foto atau video. Keduanya tetap memakai satu tombol.
+- Pertanyaan, bukti, status AI, dan nilai tampil langsung. Buka **Panduan bukti** atau **Catatan AI** saat memerlukan rincian.
+- Pada **Capaian**, tombol cetak tampil langsung. Rincian poin dan pengelolaan audit bisa dibuka sesuai kebutuhan. Cadangan seluruh audit ada di **Jadwal → Cadangan**.
+
+## Fitur yang tetap tersedia
 
 ### Cetak laporan dan foto
 
-- Tombol **Cetak laporan + foto/video** membuka pratinjau laporan. Aplikasi memuat gambar, membuat salinan gambar untuk cetak, dan menunggu gambar pada dokumen selesai dimuat sebelum mengaktifkan **Cetak / Simpan PDF**.
+- Tombol **Cetak + foto/video** membuka pratinjau laporan. Aplikasi memuat gambar, membuat salinan gambar untuk cetak, dan menunggu gambar pada dokumen selesai dimuat sebelum mengaktifkan **Cetak / Simpan PDF**.
 - Dialog cetak dipanggil langsung dari tombol pada pratinjau yang sudah siap. Tidak ada pemanggilan cetak otomatis setelah pengunduhan panjang. Laporan tetap tersedia setelah dialog ditutup.
 - Jika bukti gagal dimuat, cetak diblokir dengan pesan dan tombol **Coba muat lagi**. Foto tidak dihilangkan diam-diam dari laporan. Saat offline, bukti yang hanya tersedia di server perlu koneksi internet untuk dicetak.
 - **Unduh laporan HTML** membuat laporan mandiri dengan gambar tertanam. Buka file itu di Chrome/Safari dan gunakan menu Cetak bila dialog di browser aplikasi tidak muncul.
@@ -15,9 +21,9 @@ Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI
 
 ### Kamera HP dan video
 
-- Elemen dan setiap butir memiliki satu tombol **Kamera**. Satu input kamera menerima foto dan video, kemudian meneruskan hasil sesuai jenis bukti.
-- Di Android, panel **Kamera HP** menyediakan pilihan mode **Foto** dan **Video** dengan satu tombol **Buka kamera**. Browser Android memerlukan satu jenis media agar dapat membuka mode kamera bawaan yang tepat. Pada perangkat yang mendukung kedua jenis media sekaligus, tombol **Kamera** langsung meminta pemilih bawaan untuk foto/video. Tombol Kembali menutup panel mode tanpa berpindah butir.
-- Video MP4, MOV, dan WebM didukung jika dapat diputar browser. Batas per video: **60 detik dan 12 MiB (ditampilkan sebagai 12 MB)**. Disarankan rekaman singkat dengan resolusi 720p. Batas ukuran/durasi ditampilkan pada halaman pengambilan bukti.
+- Elemen dan setiap butir memiliki satu ikon kamera **+**. Satu input kamera menerima foto dan video, kemudian meneruskan hasil sesuai jenis bukti.
+- Di Android, panel **Kamera HP** menyediakan pilihan mode **Foto** dan **Video** dengan satu tombol **Buka kamera**. Browser Android memerlukan satu jenis media agar dapat membuka mode kamera bawaan yang tepat. Pada perangkat yang mendukung kedua jenis media sekaligus, ikon kamera **+** langsung meminta pemilih bawaan untuk foto/video. Tombol Kembali menutup panel mode tanpa berpindah butir.
+- Video MP4, MOV, dan WebM didukung jika dapat diputar browser. Batas per video: **60 detik dan 12 MiB (ditampilkan sebagai 12 MB)**. Disarankan rekaman singkat dengan resolusi 720p. Batas ukuran/durasi tersedia di **Panduan bukti**.
 - Rekaman ditautkan ke butir asal, memiliki sampul, dan dapat diputar dengan kontrol video. Petugas tetap dapat mengambil bukti lain atau berpindah halaman selama proses berjalan.
 - Video dikirim dalam bagian 1 MiB dan dilanjutkan dari bagian yang belum terkirim. Server memeriksa jenis berkas, ukuran, durasi, hash setiap bagian, dan hash seluruh rekaman sebelum video dapat direferensikan dalam audit.
 - Video dan sampul hanya tersedia bagi akun yang boleh mengakses audit tersebut. Pemutaran memakai respons streaming serta HTTP Range untuk seek, dengan akses terikat akun dan tanpa cache CDN bersama.
@@ -101,7 +107,7 @@ Nama pengguna memakai 3–40 karakter: huruf kecil, angka, titik, garis bawah, a
 | Functions directory | netlify/functions, relatif terhadap Base directory |
 | Node.js | 22 |
 
-Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.1.1. Untuk pemasangan di root repository, Base directory boleh kosong.
+Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.1.2. Untuk pemasangan di root repository, Base directory boleh kosong.
 
 ## Penyimpanan dan akses
 
@@ -140,7 +146,9 @@ npm run validate
 npm run check:bundle
 ```
 
-Pengujian otomatis lulus: **141 skenario** (32 skenario inti dan 109 skenario integrasi). Mencakup alur lama, perizinan SPBU, unggahan video bertahap, kelanjutan unggahan, verifikasi hash, pemutaran Range, akses poster, AI melalui referensi video, cadangan/pemulihan rekaman, penyiapan gambar cetak, kegagalan jaringan, ekspor HTML, dan penutupan pratinjau saat memuat. Pengujian v16.1.1 memverifikasi pemilih foto/video yang sama, panel mode Android, pembatalan, dan navigasi Kembali. Paket Function beserta SDK dan modul video berhasil dibundel.
+Pengujian otomatis lulus: **141 skenario** (32 skenario inti dan 109 skenario integrasi). Mencakup alur lama, perizinan SPBU, unggahan video bertahap, kelanjutan unggahan, verifikasi hash, pemutaran Range, akses poster, AI melalui referensi video, cadangan/pemulihan rekaman, penyiapan gambar cetak, kegagalan jaringan, ekspor HTML, dan penutupan pratinjau saat memuat. Pengujian kamera memverifikasi pemilih foto/video yang sama, panel mode Android, pembatalan, dan navigasi Kembali. Paket Function beserta SDK dan modul video berhasil dibundel.
+
+QA Chrome desktop v16.1.2 memverifikasi ikon kamera pada elemen dan butir, tampilan contoh foto/video, panduan yang bisa dibuka, dan posisi tombol cetak di Capaian.
 
 QA Chrome desktop untuk v16.1.0 menggunakan data contoh, penyimpanan tiruan, dan respons Gemini tiruan: video MP4 tiga detik berhasil diunggah melalui pemilih berkas, ditautkan ke butir asal, tersimpan, masuk antrean AI hingga selesai, dan diputar sampai akhir. Pratinjau laporan memuat satu foto dan dua sampul video, seluruh gambar selesai dimuat, tombol cetak aktif, dan unduhan HTML selesai. Browser uji tidak menampilkan dialog cetak sistem, sehingga hasil PDF fisik belum diverifikasi. Pembukaan kamera fisik HP, zoom/fokus, layanan Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Paket ini belum diterapkan ke akun Netlify pengguna.
 
