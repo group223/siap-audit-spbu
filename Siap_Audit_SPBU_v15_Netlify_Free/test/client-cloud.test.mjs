@@ -8,7 +8,7 @@ import { harness, audit, path, ELEMENT, JPEG, ORIGIN } from "./cloud-helpers.mjs
 const html = await readFile(new URL("../frontend/index.html", import.meta.url), "utf8");
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>(.*?)<\/script>/gs)].map(x => x[1]);
 const hook = "load().then(async()=>{await startNavigation();render();pumpPhotoReviews()});";
-const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,startNavigation,navigation,closeCamera,openNativeCamera,nativePhotoJPEG,nativePhotoTasks,render,itemPhotos,itemEvidenceHtml,seed,elements,openNativeVideo,nativeVideoDetails,pumpPhotoReviews,prepareReport,reportState,printReadyReport,downloadReportHTML,closeReport};";
+const exposure = "globalThis.client={state:()=>S,setState:v=>{S=v},ui:()=>ui,cloud,db:DB,load,persistState,markAuditChanged,syncCloud,refreshCatalog,openCloudAudit,importLegacyAudits,downloadBackup,restoreFile,copyConflictingAudit,pullServerVersion,deleteCloudAudit,parseBackup,startNavigation,navigation,closeCamera,openNativeCamera,nativePhotoJPEG,nativePhotoTasks,render,itemPhotos,itemEvidenceHtml,seed,elements,nativeVideoDetails,pumpPhotoReviews,prepareReport,reportState,printReadyReport,downloadReportHTML,closeReport};";
 const flush = async () => { await new Promise(setImmediate); await new Promise(setImmediate); };
 
 function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", role: "admin", stationNumber: "" }, storage = new Map()) {
@@ -19,9 +19,9 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
     pushState(state, _, url) { entries.splice(position + 1); entries.push({ state: structuredClone(state), url: String(url) }); position++; },
     back() { moveHistory(-1); }
   };
-  const nativeInput={id:'native-camera',files:[],value:'',clicks:0,click(){this.clicks++},matches:()=>false},videoInput={...nativeInput,id:'native-video'};
+  const nativeInput={id:'native-camera',files:[],value:'',clicks:0,click(){this.clicks++},matches:()=>false};
   const app = { innerHTML: "", addEventListener() {} }, cloudStatus = { innerHTML: "" }, printdoc = { innerHTML: "",querySelectorAll:()=>[] }, reportTools={innerHTML:"",hidden:true}, bodyClasses=new Set(),video = { srcObject: null, play: async () => {} }, toast = { textContent: "", classList: { add() {}, remove() {} } };
-  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : id === "camera-video" ? video : id === "native-camera" ? nativeInput : id === "native-video" ? videoInput : id === "report-tools" ? reportTools : toast, querySelectorAll: () => [],
+  const document = { getElementById: id => id === "app" ? app : id === "cloud-status" ? cloudStatus : id === "printdoc" ? printdoc : id === "camera-video" ? video : id === "native-camera" ? nativeInput : id === "report-tools" ? reportTools : toast, querySelectorAll: () => [],
     addEventListener(name, fn) { const a = handlers.get(name) || []; a.push(fn); handlers.set(name, a); },
     createElement: tag => tag === "video" ? (()=>{const events=new Map();return{src:'',duration:4,videoWidth:1280,videoHeight:720,addEventListener(name,fn){const set=events.get(name)||new Set();set.add(fn);events.set(name,set)},removeEventListener(name,fn){events.get(name)?.delete(fn)},load(){if(!this.src)return;const f=objects.get(this.src);this.duration=f?.duration??4;this.videoWidth=f?.width??1280;this.videoHeight=f?.height??720;queueMicrotask(()=>{for(const fn of events.get(f?.decodeError?'error':'loadedmetadata')||[])fn()})},set currentTime(n){this._time=n;queueMicrotask(()=>{for(const fn of events.get('seeked')||[])fn()})},pause(){},removeAttribute(){this.src=''}}})() : tag === "a" ? { href: "", download: "", click() { downloads.push({ name: this.download, blob: objects.get(this.href) }); } } : { width: 0, height: 0, getContext() { return { drawImage: (...args) => canvasSizes.push({width:this.width,height:this.height,args:args.slice(1)}) }; }, toDataURL: () => "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64") },
     body: { classList: { add(...names){for(const n of names)bodyClasses.add(n)},remove(...names){for(const n of names)bodyClasses.delete(n)},contains:n=>bodyClasses.has(n) } }
@@ -58,8 +58,7 @@ function browser(h, cookie, profile = { username: "bapal6", name: "Pengelola", r
   const api = context.client;
   async function moveHistory(delta) { const at = position + delta; if (at < 0 || at >= entries.length) return; position = at; for (const fn of windowHandlers.get("popstate") || []) await fn({ state: entries[position].state }); await flush(); }
   async function selectNative(files) { nativeInput.files=files;const pending=(handlers.get('change')||[]).map(fn=>fn({target:nativeInput}));await Promise.all(pending);await flush(); }
-  async function selectVideo(files){videoInput.files=files;await Promise.all((handlers.get('change')||[]).map(fn=>fn({target:videoInput})));await flush();}
-  return { api, storage, context, nativeInput, selectNative,videoInput,selectVideo,printdoc,reportTools,bodyClasses, canvasSizes, revokedURLs, video, app, holdImages:promise=>{imageGate=promise}, downloads, cloudStatus, toast, handlers, entries, writes: () => writeCount, holdWrites: promise => { writeGate = promise; }, position: () => position, back: () => moveHistory(-1), forward: () => moveHistory(1), override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
+  return { api, storage, context, nativeInput, selectNative,printdoc,reportTools,bodyClasses, canvasSizes, revokedURLs, video, app, holdImages:promise=>{imageGate=promise}, downloads, cloudStatus, toast, handlers, entries, writes: () => writeCount, holdWrites: promise => { writeGate = promise; }, position: () => position, back: () => moveHistory(-1), forward: () => moveHistory(1), override: fn => { fetchOverride = fn; }, async load() { await api.load(); await flush(); }, async sync() { await api.syncCloud(); await flush(); } };
 }
 function photo(photoID = "p1") { return { id: photoID, name: "bukti.jpg", type: "image/jpeg", data: "data:image/jpeg;base64," + Buffer.from(JPEG).toString("base64"), uploadedAt: "2026-11-05T07:00:00Z", aiReview: { status: "done", attempts: 1 } }; }
 function state(a) { a.evidence[ELEMENT] = [photo()]; return { sessions: [a] }; }
@@ -245,10 +244,10 @@ function allowAI(b,gate){let calls=0;b.override(async(url,options,real)=>{
  return Response.json({model:'kamera-test',photoCheck:{status:'layak',reason:'Bukti terlihat'},results:input.criteria.map(x=>({code:x.code,status:'terdukung',reason:'Terlihat'}))});
 });return()=>calls;}
 
-test('the primary photo button opens the stable rear-camera picker within the user gesture',async()=>{
+test('the single camera opens its stable photo and video picker within the user gesture',async()=>{
  const h=harness(),owner=await h.login(),b=browser(h,owner.cookie);const a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;b.api.ui().view='sess';b.api.ui().activeReviews.push({photoId:'existing-ai'});
- const input=html.match(/<input id="native-camera"[^>]+>/)?.[0];assert.ok(input);assert.match(input,/capture="environment"/);assert.match(input,/accept="image\/\*"/);assert.ok(!/\bmultiple\b/.test(input));
- b.api.openNativeCamera(0);assert.equal(b.nativeInput.clicks,1);assert.equal(b.api.ui().camera,null);
+ const input=html.match(/<input id="native-camera"[^>]+>/)?.[0];assert.ok(input);assert.match(input,/capture="environment"/);assert.match(input,/accept="image\/\*,video\/\*"/);assert.ok(!/\bmultiple\b/.test(input));
+ b.api.openNativeCamera(0);assert.equal(b.nativeInput.clicks,1);assert.ok(!b.api.ui().camera);
  b.api.render(true);assert.match(html,/data-act="open-native-camera"/);assert.equal(b.nativeInput.clicks,1);
 });
 test('one native photo is resized, persisted, and automatically sent to AI without an analyze button',async()=>{
@@ -319,21 +318,37 @@ test('a delayed native photo retains its original criterion when the user opens 
  b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:0});allowAI(b);b.api.openNativeCamera(0,x.code);const receiving=b.selectNative([nativeFile()]);await flush();b.api.ui().idx=1;release();await receiving;
  assert.equal(a.evidence[ELEMENT][0].sourceCode,x.code);assert.equal(b.api.ui().idx,1);assert.equal(b.api.ui().view,'item');
 });
-test('an invalid or cross-element criterion never opens either camera',async()=>{
+test('an invalid or cross-element criterion never opens the camera',async()=>{
  const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;
- for(const code of ['unknown','3.1.3.a']){b.api.openNativeCamera(0,code);b.api.openNativeVideo(0,code);}
- assert.equal(b.nativeInput.clicks,0);assert.equal(b.videoInput.clicks,0);assert.equal(Object.values(a.evidence).flat().length,0);
+ for(const code of ['unknown','3.1.3.a']){b.api.openNativeCamera(0,code);}
+ assert.equal(b.nativeInput.clicks,0);assert.equal(Object.values(a.evidence).flat().length,0);
 });
 
 function videoFile(extra={}){const bytes=Buffer.alloc(48,7);bytes.writeUInt32BE(24,0);bytes.write('ftypisom',4);return Object.assign(new Blob([bytes],{type:'video/mp4'}),{name:'video-kamera.mp4',...extra})}
 async function drain(b){for(let i=0;i<60;i++){await flush();if(!b.api.cloud.busy&&!b.api.nativePhotoTasks.size)return;}throw new Error('Client work did not settle');}
 
-test('the UI offers native photo and video capture without a web-camera choice',async()=>{
+test('one camera button and input accept both photo and video evidence for the same criterion',async()=>{
  const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:0});b.api.render();
- assert.ok(!html.includes('data-act="open-camera"'));assert.ok(!html.includes('getUserMedia'));assert.match(b.app.innerHTML,/data-act="open-native-camera"/);assert.match(b.app.innerHTML,/data-act="open-native-video"[^>]+data-source="1\.1\.1\.a"/);assert.match(html,/<input id="native-video"[^>]+accept="video\/\*"[^>]+capture="environment"/);b.context.navigator.onLine=false;
- const button={dataset:{act:'open-native-video',el:'0',source:'1.1.1.a'}};for(const fn of b.handlers.get('click')||[])await fn({target:{closest:()=>button}});assert.equal(b.videoInput.clicks,1);
- await b.selectVideo([videoFile()]);const p=a.evidence[ELEMENT][0];assert.equal(p.type,'video/mp4');assert.equal(p.sourceCode,'1.1.1.a');assert.equal(p.duration,4);assert.ok(p.mediaBlob instanceof Blob);assert.equal(b.api.ui().view,'item');
- assert.ok(b.storage.get(b.api.db+':state').sessions[0].evidence[ELEMENT][0].mediaBlob instanceof Blob);
+ assert.ok(!html.includes('getUserMedia'));assert.ok(!html.includes('id="native-video"'));assert.equal((b.app.innerHTML.match(/data-act="open-native-camera"/g)||[]).length,1);assert.match(b.app.innerHTML,/data-act="open-native-camera"[^>]+data-source="1\.1\.1\.a"/);b.context.navigator.onLine=false;
+ const click=async()=>{const button={dataset:{act:'open-native-camera',el:'0',source:'1.1.1.a'}};for(const fn of b.handlers.get('click')||[])await fn({target:{closest:()=>button}});};
+ await click();assert.equal(b.nativeInput.clicks,1);assert.equal(b.nativeInput.accept,'image/*,video/*');await b.selectNative([nativeFile()]);
+ await click();assert.equal(b.nativeInput.clicks,2);await b.selectNative([videoFile()]);const [photo,video]=a.evidence[ELEMENT];
+ assert.equal(photo.type,'image/jpeg');assert.equal(photo.sourceCode,'1.1.1.a');assert.equal(video.type,'video/mp4');assert.equal(video.sourceCode,'1.1.1.a');assert.equal(video.duration,4);assert.ok(video.mediaBlob instanceof Blob);assert.equal(b.api.ui().view,'item');
+ assert.ok(b.storage.get(b.api.db+':state').sessions[0].evidence[ELEMENT][1].mediaBlob instanceof Blob);
+});
+
+test('Android switches native capture modes in one camera panel and Back closes that panel',async()=>{
+ const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});await b.api.startNavigation();
+ b.context.navigator.userAgent='Mozilla/5.0 (Linux; Android 14; Pixel 7)';b.context.navigator.onLine=false;Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:0});b.api.render();
+ const click=async(act,extra={})=>{const button={dataset:{act,...extra}};for(const fn of b.handlers.get('click')||[])await fn({target:{closest:()=>button}});};
+ await click('open-native-camera',{el:'0',source:'1.1.1.a'});assert.equal(b.nativeInput.clicks,0);assert.match(b.app.innerHTML,/role="dialog"[^>]+aria-labelledby="camera-title"/);
+ const entries=b.entries.length;
+ await click('launch-native-camera');assert.equal(b.nativeInput.accept,'image/*');
+ for(const fn of b.handlers.get('cancel')||[])fn({target:b.nativeInput});assert.equal(b.nativeInput.accept,'image/*,video/*');assert.ok(b.api.ui().camera);
+ await click('camera-mode',{mode:'video'});assert.equal(b.entries.length,entries);await click('launch-native-camera');assert.equal(b.nativeInput.accept,'video/*');
+ await b.selectNative([nativeFile()]);assert.equal(Object.values(a.evidence).flat().length,0);
+ await click('launch-native-camera');await b.selectNative([videoFile()]);assert.equal(a.evidence[ELEMENT][0].type,'video/mp4');assert.equal(a.evidence[ELEMENT][0].sourceCode,'1.1.1.a');assert.ok(!b.api.ui().camera);assert.equal(b.api.ui().view,'item');
+ await click('open-native-camera',{el:'0',source:'1.1.1.a'});await b.back();assert.ok(!b.api.ui().camera);assert.equal(b.api.ui().view,'item');
 });
 
 test('toilet and wastafel guidance asks for the facility rather than an operator photo',async()=>{
@@ -341,14 +356,14 @@ test('toilet and wastafel guidance asks for the facility rather than an operator
 });
 test('native video validates duration, size, formats and decoding before adding evidence',async()=>{
  const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});b.api.ui().sid=a.id;
- for(const file of [videoFile({duration:61}),new Blob(['svg'],{type:'image/svg+xml'}),{size:13*1024*1024,type:'video/mp4'},videoFile({decodeError:true})]){b.api.openNativeVideo(0,'1.1.1.a');await b.selectVideo([file]);assert.equal(Object.values(a.evidence).flat().length,0);}
- b.api.openNativeVideo(0);await b.selectVideo([videoFile(),videoFile()]);assert.equal(Object.values(a.evidence).flat().length,0);
- b.api.openNativeVideo(0);for(const fn of b.handlers.get('cancel')||[])fn({target:b.videoInput});await b.selectVideo([]);assert.equal(Object.values(a.evidence).flat().length,0);
+ for(const file of [videoFile({duration:61}),new Blob(['svg'],{type:'image/svg+xml'}),{size:13*1024*1024,type:'video/mp4'},videoFile({decodeError:true})]){b.api.openNativeCamera(0,'1.1.1.a');await b.selectNative([file]);assert.equal(Object.values(a.evidence).flat().length,0);}
+ b.api.openNativeCamera(0);await b.selectNative([videoFile(),videoFile()]);assert.equal(Object.values(a.evidence).flat().length,0);
+ b.api.openNativeCamera(0);for(const fn of b.handlers.get('cancel')||[])fn({target:b.nativeInput});await b.selectNative([]);assert.equal(Object.values(a.evidence).flat().length,0);
 });
 test('video sync stores chunks, AI sends only an authorized reference, and another device restores a portable backup',async()=>{
  const h=harness(),owner=await h.login(),b=browser(h,owner.cookie),a=audit();b.api.setState({sessions:[a]});Object.assign(b.api.ui(),{sid:a.id,view:'item',idx:0});let request;
  b.override(async(url,options,real)=>{if(url!=='/api/evidence/analyze')return real();request=JSON.parse(options.body);return Response.json({photoCheck:{status:'layak',reason:'Video terlihat'},results:request.criteria.map(x=>({code:x.code,status:'terdukung',reason:'Video relevan'}))});});
- b.api.openNativeVideo(0,'1.1.1.a');await b.selectVideo([videoFile()]);await drain(b);await b.sync();await drain(b);const p=a.evidence[ELEMENT][0];assert.ok(p.cloudHash);assert.equal(p._linkedHash,p.cloudHash);assert.equal(p.aiReview.attempts,0);assert.equal(p.mediaBlob,undefined);
+ b.api.openNativeCamera(0,'1.1.1.a');await b.selectNative([videoFile()]);await drain(b);await b.sync();await drain(b);const p=a.evidence[ELEMENT][0];assert.ok(p.cloudHash);assert.equal(p._linkedHash,p.cloudHash);assert.equal(p.aiReview.attempts,0);assert.equal(p.mediaBlob,undefined);
  p.aiReview.nextAttemptAt=0;b.api.pumpPhotoReviews();await flush();await drain(b);await b.sync();assert.equal(p.aiReview.status,'done');assert.ok(request.videoRef);assert.equal(request.photos,undefined);assert.ok(JSON.stringify(request).length<50000);
  const second=browser(h,owner.cookie);await second.load();await second.api.openCloudAudit(a.id);const opened=second.api.state().sessions.find(s=>s.id===a.id);assert.match(opened.evidence[ELEMENT][0].posterUrl,/\/videos\/.*\/poster$/);await second.api.downloadBackup([opened],'audit-video.json');const parsed=second.api.parseBackup(await second.downloads[0].blob.text(),[]);assert.match(parsed.sessions[0].evidence[ELEMENT][0].data,/^data:video\/mp4;base64,/);
  const restored=browser(h,owner.cookie);await restored.api.restoreFile(second.downloads[0].blob);await drain(restored);await restored.sync();await drain(restored);assert.equal(restored.api.cloud.error,'');assert.ok(restored.api.state().sessions[0].evidence[ELEMENT][0].cloudHash);

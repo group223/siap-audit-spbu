@@ -78,9 +78,9 @@ let scenarios=0;
 {
   const h=harness();const a=h.photo('a'),b=h.photo('b');b.aiReview={status:'done',attempts:1};const state=h.state([a,b]);state.sessions[0].aiEvidence[h.el]={checkedAt:new Date().toISOString(),photoReviews:[{photoId:'b',photoIndex:2,results:[{code:h.seed[0].code,status:'terdukung',reason:'Bukti foto B.',photoNumbers:[2]}]}],results:[{code:h.seed[0].code,status:'terdukung',reason:'Bukti foto B.',photoNumbers:[2]}]};h.api.setState(state);h.fetch(async(_url,opts)=>success(opts,'ulang'));h.api.enqueuePhotoReview('s1',0,0);await flush();assert.equal(photos(h).length,2);assert.equal(photos(h)[0].aiReview.status,'retake');assert.equal(photos(h)[1].id,'b');const ai=h.api.getState().sessions[0].aiEvidence[h.el];assert.equal(ai.photoReviews[0].photoIndex,2);assert.equal(ai.results[0].photoNumbers[0],2);assert.match(ai.lastRejected.message,/buram/);scenarios++;
 }
-// Native photo and video controls remain available while a review is in flight.
+// The shared native camera remains available while a review is in flight.
 {
-  const h=harness();h.api.setState(h.state([h.photo('a'),h.photo('b')]));const pending=[];let calls=0;h.fetch((_url,opts)=>{calls++;return new Promise(resolve=>pending.push(()=>resolve(success(opts))))});h.api.enqueuePhotoReview('s1',0,0);h.api.enqueuePhotoReview('s1',0,1);await flush();assert.equal(calls,1);assert.equal(h.api.getUI().analysisQueue.length,1);assert.equal(photos(h).length,2);assert.match(h.app.innerHTML,/data-act="open-native-camera" data-el="0">/);assert.match(h.app.innerHTML,/data-act="open-native-video" data-el="0">/);
+  const h=harness();h.api.setState(h.state([h.photo('a'),h.photo('b')]));const pending=[];let calls=0;h.fetch((_url,opts)=>{calls++;return new Promise(resolve=>pending.push(()=>resolve(success(opts))))});h.api.enqueuePhotoReview('s1',0,0);h.api.enqueuePhotoReview('s1',0,1);await flush();assert.equal(calls,1);assert.equal(h.api.getUI().analysisQueue.length,1);assert.equal(photos(h).length,2);assert.match(h.app.innerHTML,/data-act="open-native-camera" data-el="0">/);assert.ok(!h.app.innerHTML.includes('data-act="open-native-video"'));
   pending.shift()();await flush();assert.equal(calls,2);pending.shift()();await flush();assert.ok(photos(h).every(p=>p.aiReview.status==='done'));scenarios++;
 }
 // Thumbnail taps open a preview without invoking deletion.

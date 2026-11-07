@@ -72,6 +72,10 @@ textarea.cm{width:100%;border:1px solid var(--line);background:var(--card);borde
 .note{font-size:11.5px;color:var(--mut);margin:12px 2px}
 .sheet{position:fixed;inset:0;z-index:20;background:#06182c99;display:flex;align-items:flex-end;justify-content:center}.sheet form,.sheet .box{background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px))}
 .sheet label{display:block;font-size:12px;color:var(--mut);margin:11px 0 4px}.sheet input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:11px}
+.camera-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.camera-head h2{margin:0;font-size:18px}
+.camera-modes{display:grid;grid-template-columns:1fr 1fr;gap:8px;border:0;padding:0;margin:14px 0}.camera-modes legend{font-size:12px;font-weight:600;margin-bottom:6px;color:var(--mut)}
+.camera-modes .btn[aria-pressed="true"]{background:var(--sky);border-color:var(--blue);color:var(--blue)}
+.camera-launch{width:100%}
 .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#14222f;color:#fff;border-radius:10px;padding:9px 14px;font-size:12px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}.toast.show{opacity:1}
 button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #printdoc{display:none}
@@ -98,8 +102,7 @@ body.report-open #printdoc{display:block;max-width:210mm;box-sizing:border-box;p
 </head>
 <body>
 <div id="app"></div>
-<input id="native-camera" type="file" accept="image/*" capture="environment" aria-label="Ambil satu foto dengan kamera HP" hidden>
-<input id="native-video" type="file" accept="video/*" capture="environment" aria-label="Rekam satu video dengan kamera HP" hidden>
+<input id="native-camera" type="file" accept="image/*,video/*" capture="environment" aria-label="Ambil foto atau video dengan kamera HP" hidden>
 <div id="report-tools" hidden></div>
 <div id="printdoc"></div>
 <div class="toast" id="toast"></div>
@@ -191,26 +194,53 @@ const fdate=d=>d?new Intl.DateTimeFormat("id-ID",{weekday:"long",day:"numeric",m
 const offline=()=>`<span class="pill ${navigator.onLine?"on":"off"}">${navigator.onLine?"Online":"Offline"}</span>`;
 function photoCardHtml(s,el,ei,p,i){const q=p.aiReview||{},labels={done:"AI selesai",checking:"Sedang diperiksa",queued:navigator.onLine?"Antrean AI":"Menunggu internet",retry_wait:"Menunggu coba ulang",failed:"Belum berhasil",retake:"Disarankan ambil ulang"};return `<div class="evidence-photo">${isVideo(p)?`<button class="thumb-preview" type="button" data-act="preview-evidence" data-el="${ei}" data-id="${esc(p.id)}" data-i="${i}" aria-label="Putar video ${i+1}"><img src="${esc(posterSource(p))}" alt="Sampul video ${i+1}"><span>▶ Video • ${mediaDuration(p.duration)}</span></button>`:p.type?.startsWith("image/")?`<button class="thumb-preview" type="button" data-act="preview-evidence" data-el="${ei}" data-id="${esc(p.id)}" data-i="${i}" aria-label="Lihat foto ${i+1}"><img src="${esc(photoSource(p))}" alt="Bukti foto ${i+1}"><span>Perbesar</span></button>`:`<span class="fileb">PDF · ${esc(p.name||"dokumen")}</span>`}<small>${p.sourceCode?`Diambil untuk ${esc(p.sourceCode)}`:"Foto umum elemen"}</small><small>${labels[q.status]||"Belum diperiksa"}</small>${q.status==="failed"?`<button class="photo-retry" type="button" data-act="retry-evidence" data-el="${ei}" data-id="${esc(p.id)}">Coba lagi</button>`:""}<button class="photo-delete" type="button" data-act="rm-evidence" data-el="${ei}" data-id="${esc(p.id)}" data-i="${i}">Hapus ${isVideo(p)?"video":"foto"}</button></div>`}
 function reviewNoticesHtml(photos,indices=null){return photos.map((p,i)=>{const q=p.aiReview;if(!q||!["failed","retry_wait"].includes(q.status))return "";return `<div class="review-notice" role="status"><strong>Foto ${(indices?.[i]??i)+1} • ${q.status==="retry_wait"?"Menunggu coba ulang otomatis":"Pemeriksaan belum berhasil"}</strong><p>${esc(q.message||"Layanan AI belum menyelesaikan pemeriksaan.")}</p><small>${q.status==="retry_wait"?`Percobaan ${Math.min((q.attempts||0)+1,MAX_PHOTO_ATTEMPTS)} dari ${MAX_PHOTO_ATTEMPTS}, setelah ${new Date(q.nextAttemptAt).toLocaleTimeString("id-ID")}.`:"Tekan Coba lagi pada foto tersebut; tidak perlu mengambil ulang."}</small></div>`}).join("")}
-function elementEvidenceHtml(s,el,ei){const photos=evidence(s,el),a=s.aiEvidence?.[el];return `<div class="evidence-box"><div class="evidence-title">Foto dan video bukti elemen ini</div><p class="hint">Ambil satu foto setiap kali. AI memeriksa otomatis di latar belakang. Anda bisa terus mengambil foto atau membuka halaman lain. Nilai A–F tetap ditentukan petugas.</p><div class="evidence-actions"><button class="btn p" data-act="open-native-camera" data-el="${ei}">📷 Ambil satu foto</button><button class="btn" data-act="open-native-video" data-el="${ei}">🎥 Rekam video</button></div><p class="hint">Tombol foto meminta kamera HP. Gunakan zoom/fokus yang tersedia di kamera tersebut. Video maksimal 60 detik dan 12 MB; disarankan rekaman singkat dengan resolusi 720p.</p>${nativePhotoTasks.size?`<p class="hint" role="status">Menyiapkan ${nativePhotoTasks.size} bukti…</p>`:""}<p class="hint">Foto dan antrean dikirim ke server di latar belakang. Saat offline, perubahan menunggu di HP sampai internet tersedia. Pemeriksaan yang terputus akan dilanjutkan. Jika AI menyarankan foto ulang, foto tetap tersimpan agar petugas dapat meninjaunya.</p><div class="evidence-files"><div class="thumbs">${photos.map((p,i)=>photoCardHtml(s,el,ei,p,i)).join("")||`<span class="hint">Belum ada foto bukti.</span>`}</div></div><div class="review-notices">${reviewNoticesHtml(photos)}</div>${a?.lastRejected?`<p class="gap">Foto sebelumnya disarankan untuk diambil ulang: ${esc(a.lastRejected.message)} Silakan ambil foto ulang.</p>`:""}${a?.results?.length?`<div class="analysis-box"><strong>Hasil AI untuk elemen ini • ${a.photoReviews?.filter(q=>q.photoIndex>0).length||0} foto diperiksa • ${new Date(a.checkedAt).toLocaleString("id-ID")}</strong><p>${esc(a.summary||"Pemeriksaan selesai. Tinjau status setiap butir di bawah.")}</p><div>${a.results.map(r=>`<div class="analysis-row"><div class="tx"><b>${esc(r.code)}</b><small>${esc(r.reason||"")}${r.photoNumbers?.length?` • Foto ${r.photoNumbers.join(", ")}`:""}</small></div><span class="ai-label ${aiStatusClass(r.status)}">${aiStatusLabel(r.status)}</span></div>`).join("")}</div><p class="hint">Hasil AI adalah pemeriksaan bukti visual, bukan nilai audit.</p></div>`:""}</div>`}
+function elementEvidenceHtml(s,el,ei){const photos=evidence(s,el),a=s.aiEvidence?.[el];return `<div class="evidence-box"><div class="evidence-title">Foto dan video bukti elemen ini</div><p class="hint">Buka Kamera untuk mengambil satu foto atau video. AI memeriksa otomatis di latar belakang. Anda bisa mengambil bukti lagi atau membuka halaman lain. Nilai A–F tetap ditentukan petugas.</p><div class="evidence-actions"><button class="btn p" data-act="open-native-camera" data-el="${ei}">📷 Kamera</button></div><p class="hint">Tombol Kamera membuka kamera HP. Gunakan zoom/fokus yang tersedia di kamera tersebut. Video maksimal 60 detik dan 12 MB; disarankan rekaman singkat dengan resolusi 720p.</p>${nativePhotoTasks.size?`<p class="hint" role="status">Menyiapkan ${nativePhotoTasks.size} bukti…</p>`:""}<p class="hint">Foto dan antrean dikirim ke server di latar belakang. Saat offline, perubahan menunggu di HP sampai internet tersedia. Pemeriksaan yang terputus akan dilanjutkan. Jika AI menyarankan foto ulang, foto tetap tersimpan agar petugas dapat meninjaunya.</p><div class="evidence-files"><div class="thumbs">${photos.map((p,i)=>photoCardHtml(s,el,ei,p,i)).join("")||`<span class="hint">Belum ada foto atau video bukti.</span>`}</div></div><div class="review-notices">${reviewNoticesHtml(photos)}</div>${a?.lastRejected?`<p class="gap">Foto sebelumnya disarankan untuk diambil ulang: ${esc(a.lastRejected.message)} Silakan ambil foto ulang.</p>`:""}${a?.results?.length?`<div class="analysis-box"><strong>Hasil AI untuk elemen ini • ${a.photoReviews?.filter(q=>q.photoIndex>0).length||0} foto diperiksa • ${new Date(a.checkedAt).toLocaleString("id-ID")}</strong><p>${esc(a.summary||"Pemeriksaan selesai. Tinjau status setiap butir di bawah.")}</p><div>${a.results.map(r=>`<div class="analysis-row"><div class="tx"><b>${esc(r.code)}</b><small>${esc(r.reason||"")}${r.photoNumbers?.length?` • Foto ${r.photoNumbers.join(", ")}`:""}</small></div><span class="ai-label ${aiStatusClass(r.status)}">${aiStatusLabel(r.status)}</span></div>`).join("")}</div><p class="hint">Hasil AI adalah pemeriksaan bukti visual, bukan nilai audit.</p></div>`:""}</div>`}
 function itemEvidenceHtml(s,x){
  const ei=elements.indexOf(x.element),photos=itemPhotos(s,x),ai=aiFor(s,x);
- return `<div class="card evidence-box"><div class="evidence-title">Foto/video untuk ${esc(x.code)}</div><p class="hint">${photos.length} bukti terkait. Ambil foto bagian yang dinilai pada butir ini. AI memeriksa otomatis; Anda bisa lanjut mengambil foto atau membuka butir lain.</p><div class="evidence-actions"><button class="btn p" type="button" data-act="open-native-camera" data-el="${ei}" data-source="${esc(x.code)}">📷 Tambah foto</button><button class="btn" type="button" data-act="open-native-video" data-el="${ei}" data-source="${esc(x.code)}">🎥 Rekam video</button></div>${nativePhotoTasks.size?`<p class="hint" role="status">Menyiapkan ${nativePhotoTasks.size} bukti…</p>`:""}<div class="thumbs">${photos.map(({photo,index})=>photoCardHtml(s,x.element,ei,photo,index)).join("")||`<span class="hint">Belum ada foto terkait.</span>`}</div>${reviewNoticesHtml(photos.map(({photo})=>photo),photos.map(({index})=>index))}<p class="hint">${ai?`Status AI butir ini: ${esc(aiStatusLabel(ai.status))}. ${esc(ai.reason||"")}`:"Bukti belum diperiksa untuk butir ini."} Nilai A–F tetap dipilih petugas.</p><p class="hint">Foto/video ditandai untuk butir ini dan tetap dapat mendukung butir lain dalam elemen yang sama. Video maksimal 60 detik dan 12 MB. Foto umum dari versi sebelumnya juga tetap tersedia.</p><button class="btn" type="button" data-act="back-evidence">Lihat semua foto elemen</button></div>`;
+ return `<div class="card evidence-box"><div class="evidence-title">Foto/video untuk ${esc(x.code)}</div><p class="hint">${photos.length} bukti terkait. Ambil foto atau video bagian yang dinilai. AI memeriksa otomatis sambil Anda mengambil bukti lain atau berpindah butir.</p><div class="evidence-actions"><button class="btn p" type="button" data-act="open-native-camera" data-el="${ei}" data-source="${esc(x.code)}">📷 Kamera</button></div>${nativePhotoTasks.size?`<p class="hint" role="status">Menyiapkan ${nativePhotoTasks.size} bukti…</p>`:""}<div class="thumbs">${photos.map(({photo,index})=>photoCardHtml(s,x.element,ei,photo,index)).join("")||`<span class="hint">Belum ada bukti terkait.</span>`}</div>${reviewNoticesHtml(photos.map(({photo})=>photo),photos.map(({index})=>index))}<p class="hint">${ai?`Status AI butir ini: ${esc(aiStatusLabel(ai.status))}. ${esc(ai.reason||"")}`:"Bukti belum diperiksa untuk butir ini."} Nilai A–F tetap dipilih petugas.</p><p class="hint">Foto/video ditandai untuk butir ini dan tetap dapat mendukung butir lain dalam elemen yang sama. Video maksimal 60 detik dan 12 MB. Foto umum dari versi sebelumnya juga tetap tersedia.</p><button class="btn" type="button" data-act="back-evidence">Lihat semua bukti elemen</button></div>`;
 }
 function previewSheet(){const q=ui.preview,s=S.sessions.find(x=>x.id===q?.sid),el=q&&elements[q.ei],photos=s&&evidence(s,el),i=photos?photos.findIndex((p,n)=>q.photoId?p.id===q.photoId:n===q.photoIndex):-1,p=i>=0?photos[i]:null;if(!q||!p)return "";return `<div class="preview-sheet" data-act="close-preview"><section class="preview-box" role="dialog" aria-modal="true" aria-label="Pratinjau bukti"><div class="preview-head"><span>${isVideo(p)?"Video":"Foto"} bukti ${i+1} • ${esc(el.replace(/\s*\(\d+(?:\.\d+)?\)\s*$/, ""))}</span><button class="btn" data-act="close-preview">Tutup</button></div>${isVideo(p)?`<video id="evidence-video" data-media-id="${esc(p.id)}" class="preview-image" src="${esc(photoSource(p))}" poster="${esc(posterSource(p))}" controls playsinline preload="metadata"></video>`:`<img class="preview-image" src="${esc(photoSource(p))}" alt="Pratinjau foto bukti ${i+1}">`}</section></div>`}
-function closeCamera(){const stream=ui.camera?.stream;if(stream)stream.getTracks().forEach(t=>t.stop());ui.camera=null}
+function closeCamera(){ui.camera=null}
 /*native-camera:start*/
 let nativeCapture=null;
+let cameraMode='photo';
 const nativePhotoTasks=new Set();
+const nativeAccept={both:'image/*,video/*',photo:'image/*',video:'video/*'};
+function validCameraTarget(s,ei,sourceCode){
+ return !!s&&!s._cloud?.deleteRequested&&belongsToUser(s)&&Number.isInteger(ei)&&ei>=0&&ei<elements.length&&typeof sourceCode==='string'&&(!sourceCode||seed.some(x=>x.code===sourceCode&&x.element===elements[ei]));
+}
 function openNativeCamera(ei,sourceCode=""){
- const s=sess();if(sessionLeaving||!s||s._cloud?.deleteRequested||!belongsToUser(s)||!Number.isInteger(ei)||ei<0||ei>=elements.length)return;
- if(sourceCode&&!seed.some(x=>x.code===sourceCode&&x.element===elements[ei])){toast('Butir tujuan foto tidak valid.');return;}
+ const s=sess();if(sessionLeaving)return;
+ if(!validCameraTarget(s,ei,sourceCode)){toast('Buka butir atau elemen tujuan untuk mengambil bukti.');return;}
+ const target={sid:s.id,ei,sourceCode};
+ // Android's native capture intents require a single media type. Ask for
+ // the mode in one camera panel rather than falling into its gallery picker.
+ if(/\bAndroid\b/i.test(navigator.userAgent||'')||/^Android$/i.test(navigator.userAgentData?.platform||'')){
+  ui.camera=target;render(true);return;
+ }
+ launchNativeCamera(target,'both');
+}
+function cameraPanel(){
+ const q=ui.camera,target=q.sourceCode?'Butir '+q.sourceCode:'Elemen '+(q.ei+1);
+ const mode=(value,label)=>`<button type="button" class="btn" data-act="camera-mode" data-mode="${value}" aria-pressed="${cameraMode===value}">${label}</button>`;
+ return `<div class="sheet"><section class="box" role="dialog" aria-modal="true" aria-labelledby="camera-title"><div class="camera-head"><h2 id="camera-title">Kamera HP</h2><button type="button" class="btn" data-act="close-native-camera">Tutup</button></div><p class="hint">${esc(target)}</p><fieldset class="camera-modes"><legend>Mode kamera</legend>${mode('photo','Foto')}${mode('video','Video')}</fieldset><button type="button" class="btn p camera-launch" data-act="launch-native-camera">Buka kamera</button>${cameraMode==='video'?'<p class="hint">Video maksimal 60 detik dan 12 MB.</p>':''}</section></div>`;
+}
+function launchNativeCamera(target,mode){
+ const s=sess();
+ if(sessionLeaving||!target||target.sid!==s?.id||!validCameraTarget(s,target.ei,target.sourceCode)||!Object.hasOwn(nativeAccept,mode))return;
  const input=document.getElementById('native-camera');
- if(!input||typeof input.click!=='function'){toast('Kamera HP belum tersedia. Gunakan kamera HP.');return;}
- closeCamera();nativeCapture={sid:s.id,ei,sourceCode};input.value='';
+ if(!input||typeof input.click!=='function'){toast('Kamera HP belum tersedia di browser ini.');return;}
+ nativeCapture={...target,mode};input.accept=nativeAccept[mode];input.value='';
  // Keep the picker in this user gesture. Awaiting storage or AI first can
  // prevent mobile browsers from opening their camera interface.
  flushLocalEdits();
- try{input.click()}catch{nativeCapture=null;toast('Kamera HP belum dapat dibuka. Gunakan kamera HP.');}
+ try{input.click()}catch{nativeCapture=null;input.accept=nativeAccept.both;toast('Kamera HP belum dapat dibuka. Coba lagi.');}
+}
+function nativeMediaKind(file){
+ const type=String(file?.type||'').toLowerCase(),name=String(file?.name||'');
+ if(type.startsWith('image/')||(!type&&/\.(jpe?g|png|webp|heic|heif)$/i.test(name)))return 'photo';
+ if(type.startsWith('video/')||(!type&&/\.(mp4|mov|webm)$/i.test(name)))return 'video';
+ return '';
 }
 async function nativePhotoJPEG(file){
  const type=String(file?.type||'').toLowerCase(),name=String(file?.name||'');
@@ -247,14 +277,18 @@ async function receiveNativePhoto(capture,file){
 }
 document.addEventListener('change',event=>{
  const input=event.target;if(input?.id!=='native-camera')return;
- const capture=nativeCapture,files=Array.from(input.files||[]);nativeCapture=null;input.value='';
+ const capture=nativeCapture,files=Array.from(input.files||[]);nativeCapture=null;input.value='';input.accept=nativeAccept.both;
  if(!files.length)return;
- if(!capture){toast('Buka audit tujuan lalu ambil foto kembali.');return;}
- if(files.length!==1){toast('Ambil satu foto setiap kali.');return;}
- const task=receiveNativePhoto(capture,files[0]);nativePhotoTasks.add(task);render(true);
+ if(!capture){toast('Buka audit tujuan lalu ambil bukti kembali.');return;}
+ if(files.length!==1){toast('Ambil satu foto atau video setiap kali.');return;}
+ const file=files[0],kind=nativeMediaKind(file);
+ if(!kind){toast('Ambil foto atau video yang didukung melalui kamera.');return;}
+ if(capture.mode!=='both'&&capture.mode!==kind){toast('Jenis bukti tidak sesuai mode kamera. Pilih mode yang sesuai.');return;}
+ if(ui.camera?.sid===capture.sid&&ui.camera.ei===capture.ei&&ui.camera.sourceCode===capture.sourceCode)closeCamera();
+ const task=kind==='video'?receiveNativeVideo(capture,file):receiveNativePhoto(capture,file);nativePhotoTasks.add(task);render(true);
  task.then(()=>{nativePhotoTasks.delete(task);if(!sessionLeaving)render(true);},()=>{nativePhotoTasks.delete(task);});return task;
 });
-document.addEventListener('cancel',event=>{if(event.target?.id==='native-camera'){nativeCapture=null;event.target.value='';}});
+document.addEventListener('cancel',event=>{if(event.target?.id==='native-camera'){nativeCapture=null;event.target.value='';event.target.accept=nativeAccept.both;}});
 /*native-camera:end*/
 function vJadwal(){
  const list=S.sessions.filter(s=>!s._cloud?.deleteRequested).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -296,7 +330,7 @@ function render(keep){
  recordNavigation();
  const s=sess();let h;
  if(ui.view==="jadwal"||!s)h=vJadwal();else if(ui.view==="item")h=vItem(s);else h=ui.tab==="cek"?vCek(s):ui.tab==="capaian"?vCapaian(s):vTemuan(s);
- $app.innerHTML=aiProgressHtml()+h+(ui.sheet?sheet():"")+(ui.preview?previewSheet():"")+cloudSheetHtml();const nextVideo=document.getElementById("evidence-video");if(previousVideo?.dataset?.mediaId&&previousVideo.dataset.mediaId===nextVideo?.dataset?.mediaId)nextVideo.replaceWith(previousVideo);else if(previousVideo?.dataset?.mediaId)previousVideo.pause();releaseMediaURLs();if(!keep)window.scrollTo(0,0);
+ $app.innerHTML=aiProgressHtml()+h+(ui.sheet?sheet():"")+(ui.camera?cameraPanel():"")+(ui.preview?previewSheet():"")+cloudSheetHtml();const nextVideo=document.getElementById("evidence-video");if(previousVideo?.dataset?.mediaId&&previousVideo.dataset.mediaId===nextVideo?.dataset?.mediaId)nextVideo.replaceWith(previousVideo);else if(previousVideo?.dataset?.mediaId)previousVideo.pause();releaseMediaURLs();if(!keep)window.scrollTo(0,0);
 }
 /* ---------- bukti foto ---------- */
 const MAX_PHOTO_ATTEMPTS=3;
@@ -318,18 +352,10 @@ const active={sid:job.sid,ei:job.ei,photoId:photo.id};ui.activeReviews.push(acti
 function setItem(s,id,fn){const d=get(s,id),before=JSON.stringify(d);fn(d);if(JSON.stringify(d)===before)return;s.items[id]=d;save(s)}
 /*video:start*/
 const MAX_VIDEO_BYTES=12*1024*1024;
-let nativeVideoCapture=null;
 const mediaURLs=new Map();
 const isVideo=p=>!!p?.type?.startsWith('video/');
 const mediaDuration=n=>{const s=Math.round(Number(n)||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const posterSource=p=>p.posterData||p.posterUrl||'';
-function openNativeVideo(ei,sourceCode=''){
- const s=sess();if(sessionLeaving||!s||s._cloud?.deleteRequested||!belongsToUser(s)||!Number.isInteger(ei)||ei<0||ei>=elements.length)return;
- if(sourceCode&&!seed.some(x=>x.code===sourceCode&&x.element===elements[ei])){toast('Butir tujuan video tidak valid.');return;}
- const input=document.getElementById('native-video');if(!input||typeof input.click!=='function'){toast('Kamera video belum tersedia. Buka melalui Chrome atau Safari di HP.');return;}
- nativeVideoCapture={sid:s.id,ei,sourceCode};input.value='';flushLocalEdits();
- try{input.click()}catch{nativeVideoCapture=null;toast('Kamera video belum terbuka. Coba melalui browser HP.');}
-}
 function waitMedia(video,event,action){
  return new Promise((resolve,reject)=>{
   const done=()=>{cleanup();resolve()},fail=()=>{cleanup();reject(new Error('Video belum dapat dibaca. Gunakan MP4/H.264 yang dapat diputar di HP.'))};
@@ -367,12 +393,6 @@ async function receiveNativeVideo(capture,file){
   toast(saved?'Video diterima. Pengiriman dan pemeriksaan AI dilanjutkan di latar belakang.':'Video belum tersimpan di HP. Tetap buka aplikasi sampai status tersimpan di server.');return photo;
  }catch(error){toast(error.message||'Video belum dapat disimpan. Ambil ulang.');return null;}
 }
-document.addEventListener('change',event=>{
- const input=event.target;if(input?.id!=='native-video')return;const capture=nativeVideoCapture,files=Array.from(input.files||[]);nativeVideoCapture=null;input.value='';
- if(!files.length)return;if(!capture||files.length!==1){toast('Ambil satu video setiap kali dari audit yang dipilih.');return;}
- const task=receiveNativeVideo(capture,files[0]);nativePhotoTasks.add(task);render(true);task.finally(()=>{nativePhotoTasks.delete(task);if(!sessionLeaving)render(true)});return task;
-});
-document.addEventListener('cancel',event=>{if(event.target?.id==='native-video'){nativeVideoCapture=null;event.target.value='';}});
 function localVideoSource(p){
  if(p.remoteUrl&&p._linkedHash===p.cloudHash)return p.remoteUrl;
  if(p.data)return p.data;
@@ -407,7 +427,7 @@ const navigation={ready:false,restoring:false,last:null,ticket:0,account:PROFILE
 function navigationRoute(){
  const s=sess(),view=s&&ui.view!=='jadwal'?ui.view:'jadwal';
  return {view,sid:view==='jadwal'?null:s.id,tab:['cek','capaian','temuan'].includes(ui.tab)?ui.tab:'cek',idx:view==='item'?ui.idx:0,
-  sheet:!!ui.sheet,editSid:ui.sheet?ui.editSid||null:null,preview:ui.preview?{...ui.preview}:null,camera:null,
+  sheet:!!ui.sheet,editSid:ui.sheet?ui.editSid||null:null,preview:ui.preview?{...ui.preview}:null,camera:ui.camera?{ei:ui.camera.ei,sourceCode:ui.camera.sourceCode}:null,
   report:ui.report?{photos:ui.report.photos}:null,dialog:cloud.dialog?{kind:cloud.dialog.title==='Audit yang dihapus'?'trash':'history',sid:cloud.dialog.id||ui.sid}:null};
 }
 function navigationURL(route){
@@ -435,8 +455,7 @@ async function restoreNavigation(state){
  try{
   const route=state?.spbuNavigation===1&&state.account===navigation.account&&state.route&&typeof state.route==='object'?state.route:{view:'jadwal'};
   const s=S.sessions.find(x=>x.id===route.sid&&!x._cloud?.deleteRequested&&belongsToUser(x));
-  const camera=ui.camera;
-  if(camera&&(!s||camera.sid!==s.id||camera.ei!==route.camera))closeCamera();
+  closeCamera();
   ui.sheet=false;ui.editSid=null;ui.preview=null;cloud.dialog=null;if(ui.report)resetReport();
   if(s?._remoteOnly){await openCloudAudit(s.id,false,ticket);if(ticket!==navigation.ticket)return;}
   const available=s&&!S.sessions.find(x=>x.id===s.id)?._remoteOnly;
@@ -444,6 +463,7 @@ async function restoreNavigation(state){
   ui.tab=['cek','capaian','temuan'].includes(route.tab)?route.tab:'cek';
   ui.idx=Math.max(0,Math.min(seed.length-1,Number.isInteger(route.idx)?route.idx:0));
   if(route.sheet){ui.sheet=true;ui.editSid=s&&route.editSid===s.id?s.id:null;}
+  if(available&&route.camera&&validCameraTarget(s,route.camera.ei,route.camera.sourceCode))ui.camera={sid:s.id,ei:route.camera.ei,sourceCode:route.camera.sourceCode};
   if(s&&route.report)await prepareReport(s,!!route.report.photos);
   if(s&&route.preview&&Number.isInteger(route.preview.ei)){
    const ei=route.preview.ei,p=evidence(s,elements[ei]).find(x=>x.id===route.preview.photoId);
@@ -828,7 +848,9 @@ document.addEventListener("click",async e=>{
  else if(a==="cloud-close"){cloud.dialog=null;render(true);}
  else if(a==="edit-audit"){ui.editSid=s.id;ui.sheet=true;render(true);}
  else if(a==="open-native-camera"){openNativeCamera(Number(b.dataset.el),b.dataset.source||"")}
- else if(a==="open-native-video"){openNativeVideo(Number(b.dataset.el),b.dataset.source||"")}
+ else if(a==="camera-mode"){if(ui.camera&&['photo','video'].includes(b.dataset.mode)){cameraMode=b.dataset.mode;render(true)}}
+ else if(a==="launch-native-camera"){launchNativeCamera(ui.camera,cameraMode)}
+ else if(a==="close-native-camera"){closeCamera();render(true)}
  else if(a==="open"){await openCloudAudit(b.dataset.sid)}
  else if(a==="new"){if(PROFILE?.role!=="admin"&&PROFILE&&!stationID(PROFILE.stationNumber)){toast("Hubungi admin untuk penugasan SPBU.");return}ui.editSid=null;ui.sheet=true;render(true)}
  else if(a==="cancel"){ui.sheet=false;ui.editSid=null;render(true)}
@@ -872,7 +894,7 @@ document.addEventListener("input",e=>{const t=e.target,s=sess();if(s&&t.matches(
  if(ui.view==="jadwal"){document.querySelectorAll("[data-hay]").forEach(n=>n.hidden=!!q&&!n.dataset.hay.includes(q));return}
  document.querySelectorAll(".ecard").forEach(c=>{const bd=c.querySelector(".ebody");let any=false;c.querySelectorAll(".it").forEach(n=>{const m=!q||n.dataset.hay.includes(q);n.hidden=!m;if(m)any=true});bd.hidden=q?!any:!c.dataset.open;c.hidden=!!q&&!any})});
 function moveItem(dir){const next=Math.max(0,Math.min(seed.length-1,ui.idx+dir));if(next===ui.idx)return;ui.idx=next;render()}
-let swipeStart=null;$app.addEventListener("touchstart",e=>{if(ui.view!=="item")return;const t=e.changedTouches[0];swipeStart={x:t.clientX,y:t.clientY}},{passive:true});$app.addEventListener("touchend",e=>{if(!swipeStart||ui.view!=="item")return;const t=e.changedTouches[0],dx=t.clientX-swipeStart.x,dy=t.clientY-swipeStart.y;swipeStart=null;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25)moveItem(dx<0?1:-1)},{passive:true});
+let swipeStart=null;$app.addEventListener("touchstart",e=>{if(ui.view!=="item"||ui.camera)return;const t=e.changedTouches[0];swipeStart={x:t.clientX,y:t.clientY}},{passive:true});$app.addEventListener("touchend",e=>{if(!swipeStart||ui.view!=="item"||ui.camera){swipeStart=null;return;}const t=e.changedTouches[0],dx=t.clientX-swipeStart.x,dy=t.clientY-swipeStart.y;swipeStart=null;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25)moveItem(dx<0?1:-1)},{passive:true});
 window.addEventListener("online",()=>{if(sessionLeaving)return;pumpPhotoReviews();cloud.paused=false;refreshCatalog();scheduleCloud(0);});window.addEventListener("offline",()=>{render(true);updateCloudStatus()});
 let pausedBeforeLogout=false;
 window.SPBU_BEFORE_LOGOUT=async()=>{

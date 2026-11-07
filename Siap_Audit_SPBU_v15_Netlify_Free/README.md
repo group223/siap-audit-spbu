@@ -1,8 +1,8 @@
-# Siap Audit SPBU v16.1.0 — laporan siap cetak dan video bukti
+# Siap Audit SPBU v16.1.1 — satu kamera untuk foto dan video
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, foto, dan video disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
 
-## Pembaruan v16.1.0
+## Pembaruan v16.1.1
 
 ### Cetak laporan dan foto
 
@@ -15,7 +15,8 @@ Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI
 
 ### Kamera HP dan video
 
-- Pilihan serta implementasi kamera web dihapus. Tombol **Tambah foto / Ambil satu foto** dan **Rekam video** meminta antarmuka kamera HP menggunakan input capture yang terpisah.
+- Elemen dan setiap butir memiliki satu tombol **Kamera**. Satu input kamera menerima foto dan video, kemudian meneruskan hasil sesuai jenis bukti.
+- Di Android, panel **Kamera HP** menyediakan pilihan mode **Foto** dan **Video** dengan satu tombol **Buka kamera**. Browser Android memerlukan satu jenis media agar dapat membuka mode kamera bawaan yang tepat. Pada perangkat yang mendukung kedua jenis media sekaligus, tombol **Kamera** langsung meminta pemilih bawaan untuk foto/video. Tombol Kembali menutup panel mode tanpa berpindah butir.
 - Video MP4, MOV, dan WebM didukung jika dapat diputar browser. Batas per video: **60 detik dan 12 MiB (ditampilkan sebagai 12 MB)**. Disarankan rekaman singkat dengan resolusi 720p. Batas ukuran/durasi ditampilkan pada halaman pengambilan bukti.
 - Rekaman ditautkan ke butir asal, memiliki sampul, dan dapat diputar dengan kontrol video. Petugas tetap dapat mengambil bukti lain atau berpindah halaman selama proses berjalan.
 - Video dikirim dalam bagian 1 MiB dan dilanjutkan dari bagian yang belum terkirim. Server memeriksa jenis berkas, ukuran, durasi, hash setiap bagian, dan hash seluruh rekaman sebelum video dapat direferensikan dalam audit.
@@ -100,7 +101,7 @@ Nama pengguna memakai 3–40 karakter: huruf kecil, angka, titik, garis bawah, a
 | Functions directory | netlify/functions, relatif terhadap Base directory |
 | Node.js | 22 |
 
-Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.1.0. Untuk pemasangan di root repository, Base directory boleh kosong.
+Folder pembungkus ZIP v16 sengaja tetap bernama **Siap_Audit_SPBU_v15_Netlify_Free** agar jalur Base directory proyek Netlify yang sudah ada tetap cocok. Versi program di package.json adalah 16.1.1. Untuk pemasangan di root repository, Base directory boleh kosong.
 
 ## Penyimpanan dan akses
 
@@ -139,9 +140,9 @@ npm run validate
 npm run check:bundle
 ```
 
-Pengujian otomatis lulus: **140 skenario** (32 skenario inti dan 108 skenario integrasi). Mencakup alur lama, perizinan SPBU, unggahan video bertahap, kelanjutan unggahan, verifikasi hash, pemutaran Range, akses poster, AI melalui referensi video, cadangan/pemulihan rekaman, penyiapan gambar cetak, kegagalan jaringan, ekspor HTML, dan penutupan pratinjau saat memuat. Paket Function beserta SDK dan modul video berhasil dibundel.
+Pengujian otomatis lulus: **141 skenario** (32 skenario inti dan 109 skenario integrasi). Mencakup alur lama, perizinan SPBU, unggahan video bertahap, kelanjutan unggahan, verifikasi hash, pemutaran Range, akses poster, AI melalui referensi video, cadangan/pemulihan rekaman, penyiapan gambar cetak, kegagalan jaringan, ekspor HTML, dan penutupan pratinjau saat memuat. Pengujian v16.1.1 memverifikasi pemilih foto/video yang sama, panel mode Android, pembatalan, dan navigasi Kembali. Paket Function beserta SDK dan modul video berhasil dibundel.
 
-QA Chrome desktop menggunakan data contoh, penyimpanan tiruan, dan respons Gemini tiruan: video MP4 tiga detik berhasil diunggah melalui pemilih berkas, ditautkan ke butir asal, tersimpan, masuk antrean AI hingga selesai, dan diputar sampai akhir. Pratinjau laporan memuat satu foto dan dua sampul video, seluruh gambar selesai dimuat, tombol cetak aktif, dan unduhan HTML selesai. Browser uji tidak menampilkan dialog cetak sistem, sehingga hasil PDF fisik belum diverifikasi. Pembukaan kamera fisik HP, zoom/fokus, layanan Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Paket ini belum diterapkan ke akun Netlify pengguna.
+QA Chrome desktop untuk v16.1.0 menggunakan data contoh, penyimpanan tiruan, dan respons Gemini tiruan: video MP4 tiga detik berhasil diunggah melalui pemilih berkas, ditautkan ke butir asal, tersimpan, masuk antrean AI hingga selesai, dan diputar sampai akhir. Pratinjau laporan memuat satu foto dan dua sampul video, seluruh gambar selesai dimuat, tombol cetak aktif, dan unduhan HTML selesai. Browser uji tidak menampilkan dialog cetak sistem, sehingga hasil PDF fisik belum diverifikasi. Pembukaan kamera fisik HP, zoom/fokus, layanan Netlify/Blobs produksi, dan API Gemini nyata perlu diperiksa setelah deploy. Paket ini belum diterapkan ke akun Netlify pengguna.
 
 ## Dokumentasi resmi
 

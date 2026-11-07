@@ -1,4 +1,4 @@
-# Panduan pembaruan v16.1.0 — Siap Audit SPBU
+# Panduan pembaruan v16.1.1 — Siap Audit SPBU
 
 Untuk aplikasi yang sudah berada di https://siap-audit-spbu.netlify.app/. Gunakan repository dan proyek Netlify yang sama agar akun serta penyimpanan server tetap tersedia.
 
@@ -15,7 +15,7 @@ Untuk aplikasi yang sudah berada di https://siap-audit-spbu.netlify.app/. Gunaka
 3. Pilih **Add file → Upload files**, lalu seret folder hasil ekstrak tersebut. Unggah folder/isinya, bukan ZIP. Gunakan jalur folder yang sama dengan versi sebelumnya.
 4. Pilih **Commit changes**.
 5. Buka Netlify → proyek yang sama → **Deploys**. Tunggu status **Published**.
-6. Pastikan package.json di GitHub menunjukkan versi **16.1.0** dan file baru **server/videos.mjs** ikut terunggah.
+6. Pastikan package.json di GitHub menunjukkan versi **16.1.1** dan file baru **server/videos.mjs** ikut terunggah.
 7. Muat ulang aplikasi sekali pada HP/browser. Jangan hapus data browser dan jangan membuat proyek hosting baru.
 
 Pengaturan tetap:
@@ -34,7 +34,7 @@ Tidak perlu mengganti environment variables yang sudah berfungsi: **ADMIN_USERNA
 ## 3. Foto dan video
 
 1. Buka audit → Checklist → pilih elemen → pilih subelemen/butir.
-2. Pilih **Tambah foto** untuk foto atau **Rekam video** untuk rekaman kamera HP.
+2. Tekan **Kamera**. Pada Android, pilih mode **Foto** atau **Video** di panel yang sama, lalu tekan **Buka kamera**. Pada perangkat yang mendukung pilihan gabungan, pilih mode langsung pada kamera atau pemilih bawaan HP.
 3. Selesaikan pengambilan di kamera, lalu pilih Gunakan/OK/Selesai pada HP.
 4. Foto langsung masuk antrean AI. Video masuk pemeriksaan AI setelah pengiriman ke server selesai.
 5. Anda bisa mengambil bukti lain atau berpindah butir tanpa menunggu AI. Foto/video tetap ditandai untuk butir asal.
@@ -42,7 +42,7 @@ Tidak perlu mengganti environment variables yang sudah berfungsi: **ADMIN_USERNA
 
 **Batas video:** maksimal **60 detik dan 12 MB**. Disarankan video singkat dengan resolusi 720p. Format: MP4, MOV, atau WebM yang dapat diputar di browser. Jika terlalu besar, rekam ulang lebih singkat atau turunkan resolusi kamera.
 
-Pilihan Kamera web sudah dihapus. Antarmuka kamera berasal dari HP/browser; beberapa perangkat masih dapat menawarkan galeri/berkas. Komputer biasanya membuka pemilih berkas. Tidak ada jaminan penguncian galeri atau kontrol zoom/fokus yang sama pada semua HP.
+Antarmuka kamera berasal dari HP/browser. Beberapa perangkat masih dapat menawarkan galeri atau berkas. Komputer biasanya membuka pemilih berkas. Kontrol zoom dan fokus mengikuti kamera bawaan HP.
 
 Tunggu status **tersimpan di server** sebelum menutup aplikasi atau membersihkan data HP. Video belum terkirim tetap memerlukan HP asal. Jika penyimpanan HP penuh, biarkan aplikasi terbuka sampai bukti selesai dikirim, lalu unduh cadangan.
 
@@ -68,4 +68,4 @@ Tunggu status **tersimpan di server** sebelum menutup aplikasi atau membersihkan
 
 ## Verifikasi
 
-140 pengujian otomatis dan bundel Netlify Function lulus. Foto, video MP4 contoh, pemutaran, antrean AI, serta unduhan/pratinjau laporan diperiksa di Chrome desktop dengan penyimpanan dan respons AI tiruan. Kamera fisik HP, dialog cetak/PDF perangkat pengguna, dan layanan produksi belum diverifikasi. Perubahan pada tautan aktif baru berlaku setelah paket ini diunggah dan Netlify Published.
+141 pengujian otomatis dan bundel Netlify Function lulus. Pengujian mencakup satu tombol untuk kedua jenis bukti, pemilihan mode Android, dan tombol Kembali pada panel kamera. Foto, video MP4 contoh, pemutaran, antrean AI, serta unduhan/pratinjau laporan diperiksa di Chrome desktop dengan penyimpanan dan respons AI tiruan. Kamera fisik HP, dialog cetak/PDF perangkat pengguna, dan layanan produksi belum diverifikasi. Perubahan pada tautan aktif baru berlaku setelah paket ini diunggah dan Netlify Published.
