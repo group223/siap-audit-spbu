@@ -2,6 +2,11 @@
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, foto, dan video disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
 
+## Pembaruan v16.2.1 — halaman Jadwal di laptop
+
+- Bilah akun dan status server kini berwarna biru tua dan menyatu dengan header, tidak lagi dua strip putih terpisah.
+- Di laptop, halaman Jadwal menampilkan ringkasan (jumlah audit, rata-rata progres, audit selesai, butir di bawah A), tombol **Audit baru** di samping judul, dan progres tiap elemen pada kartu audit. Di HP tampilan tetap ringkas dengan tombol melayang.
+
 ## Pembaruan v16.2.0 — tampilan laptop/PC
 
 - Tata letak responsif: HP tetap satu kolom, tablet (640–899 px) lebih lebar, dan laptop/PC (900 px ke atas) memakai lebar sampai 1180 px dengan grid. Jadwal berbentuk kartu berjajar, checklist dan temuan dua kolom, layar butir dua kolom, dan Capaian dengan empat kartu ringkasan sejajar. Bilah akun dan bilah navigasi mengikuti lebar yang sama.

@@ -119,7 +119,7 @@ body.report-open #printdoc{display:block;max-width:210mm;box-sizing:border-box;p
 .fold.card{padding:5px 14px}
 .cloud-status .fold{margin:0;font-size:12px}
 .cloud-status .fold>summary{padding:3px 0}
-.cloud-status .fold.cloud-warn>summary{color:var(--warn)}
+.cloud-status .fold>summary{color:#bcdcff}.cloud-status .fold.cloud-warn>summary{color:#ffd58a}
 .inline-link{color:var(--blue);font-size:13px;font-weight:600;text-align:left;padding:8px 0}
 .evidence-help{display:flex;flex-wrap:wrap;gap:0 12px;align-items:baseline;margin-top:4px}
 .evidence-help .fold{margin:0}
@@ -128,6 +128,8 @@ body.report-open #printdoc{display:block;max-width:210mm;box-sizing:border-box;p
 .item-label{font-size:13px;margin:14px 0 6px}
 .sub-progress{font-size:11px;color:var(--mut);white-space:nowrap;padding-right:14px}
 .stats strong small{font-size:14px;color:var(--mut);font-weight:600}
+.dsk{display:none}.jhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.eprog{margin-top:10px}.erow{display:grid;grid-template-columns:64px 1fr 44px;align-items:center;gap:8px;font-size:11.5px;color:var(--mut);margin-top:4px}.erow i{height:5px;border-radius:9px;background:var(--line);overflow:hidden}.erow b{display:block;height:100%;background:var(--blue)}.erow em{font-style:normal;text-align:right}
 @media screen and (min-width:640px) and (max-width:899px){:root{--w:720px}}
 @media screen and (min-width:900px){
 :root{--w:1180px}
@@ -137,7 +139,7 @@ body.report-open #printdoc{display:block;max-width:210mm;box-sizing:border-box;p
 body[data-v=jadwal] .pad,body[data-v=cek] .pad,body[data-v=temuan] .pad,body[data-v=item] .pad,body[data-v=capaian] .pad{display:grid;gap:14px 18px;align-items:start}
 body[data-v=jadwal] .pad{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
 body[data-v=cek] .pad,body[data-v=temuan] .pad,body[data-v=item] .pad,body[data-v=capaian] .pad{grid-template-columns:1fr 1fr}
-.pad>.search,.pad>h2,.pad>.note,.pad>.empty,.pad>.stats,.pad>.actions,.pad>.grades,.pad>.hint,.pad>textarea{grid-column:1/-1}
+.dsk{display:block}.fab{display:none}.btn.dsk{display:inline-block}.stats.dsk{display:grid}.eprog{display:block}.pad>.jhead,.pad>.stats,.pad>.search,.pad>h2,.pad>.note,.pad>.empty,.pad>.stats,.pad>.actions,.pad>.grades,.pad>.hint,.pad>textarea{grid-column:1/-1}
 body[data-v=jadwal] .pad>details{grid-column:1/-1}
 .pad>.card,.pad>details{margin:0}.pad>h2{margin:6px 0 0}
 .stats{grid-template-columns:repeat(4,1fr)}
@@ -369,14 +371,16 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('cancel',event=>{if(event.target?.id==='native-camera'){nativeCapture=null;event.target.value='';event.target.accept=nativeAccept.both;}});
 /*native-camera:end*/
+function eprog(s){try{return '<span class="dsk eprog">'+elements.map(el=>{const its=seed.filter(x=>x.element===el),dn=its.filter(x=>get(s,x.id).rating).length;return '<span class="erow"><span>Elemen '+elNo(el)+'</span><i><b style="width:'+Math.round(dn/its.length*100)+'%"></b></i><em>'+dn+'/'+its.length+'</em></span>'}).join("")+'</span>'}catch(e){return ""}}
+function jstats(list){try{const n=list.length,avg=n?Math.round(list.reduce((a,s)=>a+done(s)/seed.length,0)/n*100):0,iss=list.reduce((a,s)=>a+issues(s).length,0),dn=list.filter(s=>done(s)===seed.length).length;return '<div class="stats dsk"><div class="card"><strong>'+n+'</strong><span>Audit tercatat</span></div><div class="card"><strong>'+avg+'%</strong><span>Rata-rata progres</span></div><div class="card"><strong>'+dn+'</strong><span>Audit selesai</span></div><div class="card"><strong>'+iss+'</strong><span>Butir bernilai di bawah A</span></div></div>'}catch(e){return ""}}
 function vJadwal(){
  const list=S.sessions.filter(s=>!s._cloud?.deleteRequested).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
  const cards=list.map(s=>{
   const [k,l]=status(s),d=done(s),date=s.date?new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"short",year:"numeric"}).format(new Date(s.date+"T00:00:00")):"";
-  return `<div class="card" data-hay="${esc((s.station+" "+s.number+" "+s.city).toLowerCase())}"><button class="sp" data-act="open" data-sid="${esc(s.id)}"><b>${esc(s.station||"SPBU "+s.number)}</b><p class="station-meta">${esc([s.number,s.city,date].filter(Boolean).join(" · "))}</p><span class="st s${k}">${l}</span><div class="mini"><i style="width:${Math.round(d/seed.length*100)}%"></i></div></button></div>`;
+  return `<div class="card" data-hay="${esc((s.station+" "+s.number+" "+s.city).toLowerCase())}"><button class="sp" data-act="open" data-sid="${esc(s.id)}"><b>${esc(s.station||"SPBU "+s.number)}</b><p class="station-meta">${esc([s.number,s.city,date].filter(Boolean).join(" · "))}</p><span class="st s${k}">${l}</span>${eprog(s)}<div class="mini"><i style="width:${Math.round(d/seed.length*100)}%"></i></div></button></div>`;
  }).join("");
  return `<header class="hd"><div class="row"><div class="ib">✓</div><h1>Siap Audit SPBU</h1>${offline()}</div></header>
- <div class="pad"><input class="search" data-q placeholder="Cari SPBU atau kota" aria-label="Cari audit"><h2>Jadwal audit</h2>
+ <div class="pad"><input class="search" data-q placeholder="Cari SPBU atau kota" aria-label="Cari audit"><div class="jhead"><h2>Jadwal audit</h2><button class="btn p dsk" data-act="new">＋ Audit baru</button></div>${jstats(list)}
  ${cards||'<div class="empty">Belum ada audit.</div>'}
  ${fold("Cadangan","schedule:backup",'<p>Pastikan data tersimpan di server sebelum membersihkan data HP.</p><div class="actions"><button class="btn" data-act="backup-all">Cadangkan semua audit</button><label class="btn" for="restore">Pulihkan cadangan</label><input id="restore" data-restore type="file" accept="application/json,.json" hidden></div>',"card")}</div><button class="fab" data-act="new">＋ Audit baru</button>`;
 }
