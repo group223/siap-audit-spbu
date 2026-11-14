@@ -130,6 +130,7 @@ body.report-open #printdoc{display:block;max-width:210mm;box-sizing:border-box;p
 .stats strong small{font-size:14px;color:var(--mut);font-weight:600}
 .dsk{display:none}.jhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .eprog{margin-top:10px}.erow{display:grid;grid-template-columns:64px 1fr 44px;align-items:center;gap:8px;font-size:11.5px;color:var(--mut);margin-top:4px}.erow i{height:5px;border-radius:9px;background:var(--line);overflow:hidden}.erow b{display:block;height:100%;background:var(--blue)}.erow em{font-style:normal;text-align:right}
+.nav.side-only{display:none}
 @media screen and (min-width:640px) and (max-width:899px){:root{--w:720px}}
 @media screen and (min-width:900px){
 :root{--w:100%}
@@ -145,7 +146,17 @@ body[data-v=jadwal] .pad>details{grid-column:1/-1}
 .pad>.card,.pad>details{margin:0}.pad>h2{margin:6px 0 0}
 .stats{grid-template-columns:repeat(4,1fr)}
 .grades{gap:18px}.g{width:78px;height:78px;font-size:19px}
-.foot{padding-left:clamp(24px,3vw,56px);padding-right:clamp(24px,3vw,56px)}.nav div{padding:0 12px}
+.foot{padding-left:clamp(24px,3vw,56px);padding-right:clamp(24px,3vw,56px)}
+body[data-v=cek],body[data-v=capaian],body[data-v=temuan],body[data-v=item]{padding-left:250px}
+.nav,.nav.side-only{display:flex;flex-direction:column;gap:6px;top:0!important;bottom:0!important;left:0;right:auto;width:250px;padding:20px 14px;border-top:0;border-right:1px solid var(--line);overflow:auto}
+.nav div{max-width:none;margin:0;display:block}
+.nav .nav-brand.dsk{display:flex;align-items:center;gap:10px;font-size:15px;margin-bottom:8px}.nav .nav-brand .ib{background:var(--blue);color:#fff;width:34px;height:34px}
+.nav .nav-info.dsk{display:block;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:10px;font-size:12px;color:var(--mut)}.nav-info>b{display:block;font-size:13.5px;color:var(--ink)}.nav-info>span{display:block;margin-bottom:8px}.nav-info i{display:block;height:5px;border-radius:9px;background:var(--line);overflow:hidden}.nav-info i b{display:block;height:100%;background:var(--blue)}.nav-info em{display:block;font-style:normal;margin-top:5px}
+.nav .nav-items{display:grid;gap:4px}.nav-items button{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:11px 12px;font-size:14px;border-radius:10px;text-align:left}.nav-items button span{font-size:18px;width:22px;text-align:center}.nav-items button.on{background:var(--sky)}
+.nav .nav-back.dsk{display:block;flex:none;margin-top:auto;padding:11px 12px;text-align:left;border-radius:10px;font-size:13.5px;color:var(--blue);font-weight:600;border:1px solid var(--line)}
+.foot{bottom:0!important;left:250px}.foot div{justify-content:center;gap:28px}
+body[data-v=item] #app{padding-bottom:110px}.sheet{padding-bottom:0}
+
 .sheet{align-items:center}.sheet form,.sheet .box{border-radius:20px;max-width:520px}
 }
 </style>
@@ -388,7 +399,8 @@ function vJadwal(){
 function sheet(){const editing=ui.editSid&&S.sessions.find(x=>x.id===ui.editSid);const d=new Date(),iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),last=editing||S.sessions[S.sessions.length-1]||{};const assigned=PROFILE?.role!=="admin"&&stationID(PROFILE?.stationNumber);const number=editing?.number||assigned||last.number||"64.701.10";
  return `<div class="sheet"><form data-form><h2 style="margin:0">${editing?"Ubah data audit":"Audit baru"}</h2><label>Nama SPBU</label><input name="station" required value="${esc(last.station||"SPBU Benua Anyar")}"><label>No. SPBU</label><input name="number" required value="${esc(number)}" ${assigned||editing?._cloud?.revision?"readonly":""}><label>Kota</label><input name="city" value="${esc(last.city||"Banjarmasin, Kalimantan Selatan")}"><label>Tanggal periksa</label><input type="date" name="date" value="${esc(editing?.date||iso)}"><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><button type="button" class="btn" data-act="cancel">Batal</button><button class="btn p">${editing?"Simpan perubahan":"Buat audit"}</button></div></form></div>`}
 function head(s,title,sub,back,showBar){const d=done(s);return `<header class="hd"><div class="row"><button class="ib" data-act="${back}" aria-label="Kembali">‹</button><h1>${title}<small>${sub}</small></h1>${offline()}</div>${showBar?`<div class="bar"><i style="width:${Math.round(d/seed.length*100)}%"></i></div>`:""}</header>`}
-function nav(){const t=[["cek","☷","Checklist"],["capaian","◔","Capaian"],["temuan","⚑","Temuan"]];return `<nav class="nav"><div>${t.map(([k,i,l])=>`<button class="${ui.tab===k?"on":""}" data-act="tab" data-tab="${k}"><span>${i}</span>${l}</button>`).join("")}</div></nav>`}
+function nav(side){const t=[["cek","☷","Checklist"],["capaian","◔","Capaian"],["temuan","⚑","Temuan"]],s=sess(),d=s?done(s):0;
+ return `<nav class="nav${side?" side-only":""}"><div class="nav-brand dsk"><span class="ib">✓</span><b>Siap Audit SPBU</b></div>${s?`<div class="nav-info dsk"><b>${esc(s.station||"SPBU "+s.number)}</b><span>${esc(s.number)}</span><i><b style="width:${Math.round(d/seed.length*100)}%"></b></i><em>${d} / ${seed.length} butir dinilai</em></div>`:""}<div class="nav-items">${t.map(([k,i,l])=>`<button class="${ui.tab===k?"on":""}" data-act="tab" data-tab="${k}"><span>${i}</span>${l}</button>`).join("")}</div><button class="nav-back dsk" data-act="back-j">‹ Semua audit</button></nav>`}
 function vCek(s){
  const body=elements.map((el,ei)=>{const its=seed.filter(x=>x.element===el),dn=its.filter(x=>get(s,x.id).rating).length,bad=its.some(x=>{const r=get(s,x.id).rating;return r&&r!=="A"&&r!=="X"}),pics=mediaCount(evidence(s,el)),icon=dn===its.length?(bad?`<span class="ic warn">▲</span>`:`<span class="ic ok">✓</span>`):bad?`<span class="ic bad">▲</span>`:`<span class="ic">${elNo(el)}</span>`;
   const open=ui.open[ei];
@@ -403,7 +415,7 @@ function vItem(s){
  <h2 class="item-label">Nilai</h2><div class="grades">${x.allowed.map(r=>`<button class="g ${d.rating===r?"on "+(r==="X"?"x":(r==="A"?"":"low")):""}" data-act="rate" data-r="${r}" aria-pressed="${d.rating===r}">${r}<small>${r==="X"?"kecuali":(factor[r]??"?")}${r==="D"||r==="E"?"*":""}</small></button>`).join("")}</div>
  ${x.allowed.some(r=>r==="D"||r==="E")?'<p class="hint">* D dan E: perkiraan.</p>':""}
  <h2 class="item-label"><label for="audit-comment">Catatan</label></h2><textarea id="audit-comment" class="cm" data-comment placeholder="Tulis catatan…">${esc(d.comment)}</textarea></div>
- <div class="foot"><div><button class="arr" data-act="prev" ${ui.idx===0?"disabled":""} aria-label="Butir sebelumnya">←</button><span class="chip">Butir ${ui.idx+1} / ${seed.length}</span><button class="arr" data-act="next" ${ui.idx===seed.length-1?"disabled":""} aria-label="Butir berikutnya">→</button></div></div>`;
+ <div class="foot"><div><button class="arr" data-act="prev" ${ui.idx===0?"disabled":""} aria-label="Butir sebelumnya">←</button><span class="chip">Butir ${ui.idx+1} / ${seed.length}</span><button class="arr" data-act="next" ${ui.idx===seed.length-1?"disabled":""} aria-label="Butir berikutnya">→</button></div></div>`+nav(true);
 }
 function vCapaian(s){
  const c=score(s),is=issues(s),ph=elements.reduce((n,el)=>n+evidence(s,el).length,0),key=s.id+":results:";
