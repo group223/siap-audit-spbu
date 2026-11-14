@@ -2,6 +2,10 @@
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, foto, dan video disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
 
+## Pembaruan v16.2.2 — lebar penuh di laptop/PC
+
+- Di layar 900 px ke atas, aplikasi memenuhi lebar layar (sebelumnya dibatasi 1180 px). Margin kiri-kanan menyesuaikan lebar layar. Checklist dan Temuan menambah jumlah kolom otomatis di layar yang lebih lebar.
+
 ## Pembaruan v16.2.1 — halaman Jadwal di laptop
 
 - Bilah akun dan status server kini berwarna biru tua dan menyatu dengan header, tidak lagi dua strip putih terpisah.
