@@ -2,6 +2,10 @@
 
 Pembaruan untuk aplikasi pra-audit SPBU pada Netlify. Audit, penilaian, hasil AI, foto, dan video disimpan di Netlify Blobs setelah sinkronisasi selesai. Buka **PANDUAN_MULAI.md** untuk langkah memperbarui aplikasi yang sudah terpasang.
 
+## Pembaruan v16.3.1
+
+- Perbaikan: bagian sidebar khusus laptop (logo, kartu ringkas, tombol Semua audit) tidak lagi ikut tampil di HP/tablet. Semua elemen khusus laptop disembunyikan di bawah 900 px.
+
 ## Pembaruan v16.3.0 — sidebar di laptop
 
 - Di layar 900 px ke atas, bilah navigasi bawah (Checklist, Capaian, Temuan) berubah menjadi sidebar kiri berisi nama dan nomor SPBU, progres audit, menu, dan tombol **Semua audit**. Sidebar juga tampil di layar butir. Bilah panah butir pindah ke dasar layar dan terpusat, sehingga tidak tertutup lencana Netlify. Di HP tetap bilah bawah.
